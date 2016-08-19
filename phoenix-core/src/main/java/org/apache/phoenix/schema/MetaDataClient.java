@@ -3185,7 +3185,7 @@ public class MetaDataClient {
         }
     }
 
-    private String dropColumnMutations(PTable table, List<PColumn> columnsToDrop, List<Mutation> tableMetaData) throws SQLException {
+    private String dropColumnMutations(PTable table, List<PColumn> columnsToDrop) throws SQLException {
         String tenantId = connection.getTenantId() == null ? "" : connection.getTenantId().getString();
         String schemaName = table.getSchemaName().getString();
         String tableName = table.getTableName().getString();
@@ -3301,7 +3301,9 @@ public class MetaDataClient {
                     columnsToDrop.add(new ColumnRef(columnRef.getTableRef(), columnToDrop.getPosition()));
                 }
 
-                dropColumnMutations(table, tableColumnsToDrop, tableMetaData);
+                dropColumnMutations(table, tableColumnsToDrop);
+                boolean removedIndexTableOrColumn=false;
+                Long timeStamp = table.isTransactional() ? tableRef.getTimeStamp() : null;
                 for (PTable index : table.getIndexes()) {
                     IndexMaintainer indexMaintainer = index.getIndexMaintainer(table, connection);
                     // get the columns required for the index pk
@@ -3316,6 +3318,7 @@ public class MetaDataClient {
                             if (index.getViewIndexId()==null) 
                                 indexesToDrop.add(new TableRef(index));
                             connection.removeTable(tenantId, SchemaUtil.getTableName(schemaName, index.getName().getString()), index.getParentName() == null ? null : index.getParentName().getString(), index.getTimeStamp());
+                            removedIndexTableOrColumn = true;
                         } 
                         else if (coveredColumns.contains(columnToDropRef)) {
                             String indexColumnName = IndexUtil.getIndexColumnName(columnToDrop);
@@ -3323,15 +3326,18 @@ public class MetaDataClient {
                             indexColumnsToDrop.add(indexColumn);
                             // add the index column to be dropped so that we actually delete the column values
                             columnsToDrop.add(new ColumnRef(new TableRef(index), indexColumn.getPosition()));
+                            removedIndexTableOrColumn = true;
                         }
                     }
                     if(!indexColumnsToDrop.isEmpty()) {
-                        incrementTableSeqNum(index, index.getType(), -indexColumnsToDrop.size(), null, null);
-                        dropColumnMutations(index, indexColumnsToDrop, tableMetaData);
+                        long indexTableSeqNum = incrementTableSeqNum(index, index.getType(), -indexColumnsToDrop.size(), null, null);
+                        dropColumnMutations(index, indexColumnsToDrop);
+                        long clientTimestamp = MutationState.getMutationTimestamp(timeStamp, connection.getSCN());
+                        connection.removeColumn(tenantId, index.getName().getString(),
+                            indexColumnsToDrop, clientTimestamp, indexTableSeqNum,
+                            TransactionUtil.getResolvedTimestamp(connection, index.isTransactional(), clientTimestamp));
                     }
-
                 }
-                Long timeStamp = table.isTransactional() ? tableRef.getTimeStamp() : null;
                 tableMetaData.addAll(connection.getMutationState().toMutations(timeStamp).next().getSecond());
                 connection.rollback();
 
@@ -3386,8 +3392,11 @@ public class MetaDataClient {
                     // If we've done any index metadata updates, don't bother trying to update
                     // client-side cache as it would be too painful. Just let it pull it over from
                     // the server when needed.
-                    if (tableColumnsToDrop.size() > 0 && indexesToDrop.isEmpty()) {
-                        connection.removeColumn(tenantId, SchemaUtil.getTableName(schemaName, tableName) , tableColumnsToDrop, result.getMutationTime(), seqNum, TransactionUtil.getResolvedTime(connection, result));
+                    if (tableColumnsToDrop.size() > 0) {
+                        if (removedIndexTableOrColumn)
+                            connection.removeTable(tenantId, tableName, table.getParentName() == null ? null : table.getParentName().getString(), table.getTimeStamp());
+                        else  
+                            connection.removeColumn(tenantId, SchemaUtil.getTableName(schemaName, tableName) , tableColumnsToDrop, result.getMutationTime(), seqNum, TransactionUtil.getResolvedTime(connection, result));
                     }
                     // If we have a VIEW, then only delete the metadata, and leave the table data alone
                     if (table.getType() != PTableType.VIEW) {
