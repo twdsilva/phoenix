@@ -3049,6 +3049,10 @@ public class MetaDataClient {
                 Boolean isImmutableRows = null;
                 if (isImmutableRowsProp != null) {
                     if (isImmutableRowsProp.booleanValue() != table.isImmutableRows()) {
+                    	if (table.getStorageScheme() != StorageScheme.ONE_CELL_PER_KEYVALUE_COLUMN) {
+                    		throw new SQLExceptionInfo.Builder(SQLExceptionCode.CANNOT_ALTER_IMMUTABLE_ROWS_PROPERTY)
+                    		.setSchemaName(schemaName).setTableName(tableName).build().buildException();
+                    	}
                         isImmutableRows = isImmutableRowsProp;
                         changingPhoenixTableProperty = true;
                     }

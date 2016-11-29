@@ -2502,6 +2502,44 @@ public class AlterTableIT extends ParallelStatsDisabledIT {
             assertFalse(rs.next());
         }
     }
-	
+    
+    @Test
+    public void testAlterImmutableRowsPropertyForOneCellPerKeyValueColumnStorageScheme() throws Exception {
+        Properties props = PropertiesUtil.deepCopy(TEST_PROPERTIES);
+        String ddl = "CREATE TABLE " + dataTableFullName + " (\n"
+                +"ID VARCHAR(15) NOT NULL,\n"
+                +"CREATED_DATE DATE,\n"
+                +"CREATION_TIME BIGINT,\n"
+                +"CONSTRAINT PK PRIMARY KEY (ID))";
+        Connection conn = DriverManager.getConnection(getUrl(), props);
+        conn.createStatement().execute(ddl);
+        assertImmutableRows(conn, dataTableFullName, false);
+        ddl = "ALTER TABLE " + dataTableFullName + " SET IMMUTABLE_ROWS = true";
+        conn.createStatement().execute(ddl);
+        assertImmutableRows(conn, dataTableFullName, true);
+    }
+    
+    @Test
+    public void testAlterImmutableRowsPropertyForOneCellPerColumnFamilyStorageScheme() throws Exception {
+        Properties props = PropertiesUtil.deepCopy(TEST_PROPERTIES);
+        String ddl = "CREATE TABLE " + dataTableFullName + " (\n"
+                +"ID VARCHAR(15) NOT NULL,\n"
+                +"CREATED_DATE DATE,\n"
+                +"CREATION_TIME BIGINT,\n"
+                +"CONSTRAINT PK PRIMARY KEY (ID)) IMMUTABLE_ROWS=true";
+        Connection conn = DriverManager.getConnection(getUrl(), props);
+        conn.createStatement().execute(ddl);
+        assertImmutableRows(conn, dataTableFullName, true);
+        try {
+	        ddl = "ALTER TABLE " + dataTableFullName + " SET IMMUTABLE_ROWS = false";
+	        conn.createStatement().execute(ddl);
+	        fail();
+        }
+        catch(SQLException e) {
+        	assertEquals(SQLExceptionCode.CANNOT_ALTER_IMMUTABLE_ROWS_PROPERTY.getErrorCode(), e.getErrorCode());
+        }
+        assertImmutableRows(conn, dataTableFullName, true);
+    }
+    
 }
  
