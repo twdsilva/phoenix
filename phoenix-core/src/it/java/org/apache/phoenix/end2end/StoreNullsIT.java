@@ -17,14 +17,11 @@
  */
 package org.apache.phoenix.end2end;
 
-import static org.apache.phoenix.query.QueryConstants.DEFAULT_COLUMN_FAMILY_BYTES;
-import static org.apache.phoenix.query.QueryConstants.ENCODED_EMPTY_COLUMN_BYTES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -34,24 +31,21 @@ import java.util.Properties;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.expression.ArrayColumnExpression;
 import org.apache.phoenix.hbase.index.util.ImmutableBytesPtr;
 import org.apache.phoenix.jdbc.PhoenixConnection;
-import org.apache.phoenix.query.QueryConstants;
 import org.apache.phoenix.query.QueryServices;
 import org.apache.phoenix.schema.PColumn;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.PTableKey;
 import org.apache.phoenix.schema.tuple.ResultTuple;
 import org.apache.phoenix.schema.types.PVarchar;
 import org.apache.phoenix.util.ByteUtil;
 import org.apache.phoenix.util.PhoenixRuntime;
-import org.apache.phoenix.util.SchemaUtil;
 import org.apache.phoenix.util.TestUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -127,7 +121,7 @@ public class StoreNullsIT extends ParallelStatsDisabledIT {
         Result rs = scanner.next();
         assertTrue(rs.size() == 2); // 2 because it also includes the empty key value column
         PColumn nameColumn = conn.unwrap(PhoenixConnection.class).getTable(new PTableKey(null, tableName)).getPColumnForColumnName("NAME");
-        ArrayColumnExpression colExpression = new ArrayColumnExpression(nameColumn, "NAME", true);
+        ArrayColumnExpression colExpression = new ArrayColumnExpression(nameColumn, "NAME", QualifierEncodingScheme.FOUR_BYTE_QUALIFIERS);
         ImmutableBytesPtr ptr = new ImmutableBytesPtr();
         colExpression.evaluate(new ResultTuple(rs), ptr);
         assertEquals(new ImmutableBytesPtr(PVarchar.INSTANCE.toBytes("v1")), ptr);

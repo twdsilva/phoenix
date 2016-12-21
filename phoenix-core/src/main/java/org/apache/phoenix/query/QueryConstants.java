@@ -31,6 +31,7 @@ import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_COUNT;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_DEF;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_FAMILY;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_NAME;
+import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_QUALIFIER;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_QUALIFIER_COUNTER;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_SIZE;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.CURRENT_VALUE;
@@ -41,7 +42,6 @@ import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DECIMAL_DIGITS;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DEFAULT_COLUMN_FAMILY_NAME;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DEFAULT_VALUE;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DISABLE_WAL;
-import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.ENCODED_COLUMN_QUALIFIER;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.ENCODING_SCHEME;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.FUNCTION_NAME;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.GUIDE_POSTS_ROW_COUNT;
@@ -108,7 +108,7 @@ import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.VIEW_CONSTANT;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.VIEW_INDEX_ID;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.VIEW_STATEMENT;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.VIEW_TYPE;
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
+import static org.apache.phoenix.schema.PTable.QualifierEncodingScheme.FOUR_BYTE_QUALIFIERS;
 
 import java.math.BigDecimal;
 
@@ -165,14 +165,18 @@ public interface QueryConstants {
     public static final byte[] RESERVED_COLUMN_FAMILY_BYTES = Bytes.toBytes(RESERVED_COLUMN_FAMILY);
     
     public static final byte[] VALUE_COLUMN_FAMILY = RESERVED_COLUMN_FAMILY_BYTES;
-    public static final byte[] VALUE_COLUMN_QUALIFIER = getEncodedColumnQualifier(1);
+    //TODO: samarth think about the implication of using the four byte scheme here. Can we just
+    // get away with storing them in a single byte? We would need to make our encoding scheme
+    // cognizant of the fact that all bytes may not be available making them interoperable.
+    // In other words allow upper casting but not downcasting.
+    public static final byte[] VALUE_COLUMN_QUALIFIER = FOUR_BYTE_QUALIFIERS.getEncodedBytes(1);
     
     public static final byte[] ARRAY_VALUE_COLUMN_FAMILY = RESERVED_COLUMN_FAMILY_BYTES;
-    public static final byte[] ARRAY_VALUE_COLUMN_QUALIFIER = getEncodedColumnQualifier(2);
+    public static final byte[] ARRAY_VALUE_COLUMN_QUALIFIER = FOUR_BYTE_QUALIFIERS.getEncodedBytes(2);
     
     public final static PName SINGLE_COLUMN_NAME = PNameFactory.newNormalizedName("s");
     public final static PName SINGLE_COLUMN_FAMILY_NAME = PNameFactory.newNormalizedName("s");
-    public final static byte[] SINGLE_COLUMN = getEncodedColumnQualifier(3);
+    public final static byte[] SINGLE_COLUMN = FOUR_BYTE_QUALIFIERS.getEncodedBytes(3);
     public final static byte[] SINGLE_COLUMN_FAMILY = RESERVED_COLUMN_FAMILY_BYTES;
 
     /** END Set of reserved column qualifiers **/
@@ -204,7 +208,7 @@ public interface QueryConstants {
     public static final ImmutableBytesPtr EMPTY_COLUMN_BYTES_PTR = new ImmutableBytesPtr(
             EMPTY_COLUMN_BYTES);
     public static final Integer ENCODED_EMPTY_COLUMN_NAME = 0;
-    public static final byte[] ENCODED_EMPTY_COLUMN_BYTES = getEncodedColumnQualifier(ENCODED_EMPTY_COLUMN_NAME);
+    public static final byte[] ENCODED_EMPTY_COLUMN_BYTES = FOUR_BYTE_QUALIFIERS.getEncodedBytes(ENCODED_EMPTY_COLUMN_NAME);
     public static final ImmutableBytesPtr ENCODED_EMPTY_COLUMN_BYTES_PTR = new ImmutableBytesPtr(
             ENCODED_EMPTY_COLUMN_BYTES);
     public final static String EMPTY_COLUMN_VALUE = "x";
@@ -318,7 +322,7 @@ public interface QueryConstants {
             AUTO_PARTITION_SEQ + " VARCHAR," +
             APPEND_ONLY_SCHEMA + " BOOLEAN," +
             GUIDE_POSTS_WIDTH + " BIGINT," +
-            ENCODED_COLUMN_QUALIFIER + " UNSIGNED_INT," +
+            COLUMN_QUALIFIER + " VARBINARY," +
             STORAGE_SCHEME + " TINYINT, " +
             ENCODING_SCHEME + " TINYINT, " +
             COLUMN_QUALIFIER_COUNTER + " INTEGER, " +

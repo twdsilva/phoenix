@@ -439,7 +439,7 @@ public abstract class BaseQueryPlan implements QueryPlan {
             WritableUtils.writeVInt(output, dataColumns.size());
             for (PColumn column : dataColumns) {
                 byte[] cf = column.getFamilyName().getBytes();
-                byte[] cq = EncodedColumnsUtil.getColumnQualifier(column, dataTable);
+                byte[] cq = column.getColumnQualifierBytes();
                 Bytes.writeByteArray(output, cf);
                 Bytes.writeByteArray(output, cq);
             }

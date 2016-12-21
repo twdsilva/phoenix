@@ -17,6 +17,9 @@
  */
 package org.apache.phoenix.compile;
 
+import static org.apache.phoenix.schema.PTable.QualifierEncodingScheme.NON_ENCODED_QUALIFIERS;
+import static org.apache.phoenix.schema.PTable.StorageScheme.ONE_CELL_PER_KEYVALUE_COLUMN;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1287,7 +1290,7 @@ public class JoinCompiler {
         if (type == JoinType.Full) {
             for (PColumn c : left.getColumns()) {
                 merged.add(new ProjectedColumn(c.getName(), c.getFamilyName(),
-                        c.getPosition(), true, ((ProjectedColumn) c).getSourceColumnRef()));
+                        c.getPosition(), true, ((ProjectedColumn) c).getSourceColumnRef(), SchemaUtil.isPKColumn(c) ? null : c.getName().getBytes()));
             }
         } else {
             merged.addAll(left.getColumns());
@@ -1297,7 +1300,7 @@ public class JoinCompiler {
             if (!SchemaUtil.isPKColumn(c)) {
                 PColumn column = new ProjectedColumn(c.getName(), c.getFamilyName(), 
                         position++, type == JoinType.Inner ? c.isNullable() : true, 
-                        ((ProjectedColumn) c).getSourceColumnRef());
+                        ((ProjectedColumn) c).getSourceColumnRef(), c.getName().getBytes());
                 merged.add(column);
             }
         }
@@ -1313,7 +1316,7 @@ public class JoinCompiler {
                 left.isMultiTenant(), left.getStoreNulls(), left.getViewType(), left.getViewIndexId(),
                 left.getIndexType(), left.rowKeyOrderOptimizable(), left.isTransactional(),
                 left.getUpdateCacheFrequency(), left.getIndexDisableTimestamp(), left.isNamespaceMapped(), 
-                left.getAutoPartitionSeqName(), left.isAppendOnlySchema(), StorageScheme.ONE_CELL_PER_KEYVALUE_COLUMN, QualifierEncodingScheme.NON_ENCODED_QUALIFIERS, PTable.EncodedCQCounter.NULL_COUNTER);
+                left.getAutoPartitionSeqName(), left.isAppendOnlySchema(), ONE_CELL_PER_KEYVALUE_COLUMN, NON_ENCODED_QUALIFIERS, PTable.EncodedCQCounter.NULL_COUNTER);
     }
 
 }

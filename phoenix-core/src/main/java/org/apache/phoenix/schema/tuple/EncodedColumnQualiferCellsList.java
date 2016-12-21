@@ -20,7 +20,6 @@ package org.apache.phoenix.schema.tuple;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.phoenix.query.QueryConstants.ENCODED_CQ_COUNTER_INITIAL_VALUE;
 import static org.apache.phoenix.query.QueryConstants.ENCODED_EMPTY_COLUMN_NAME;
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
 
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
@@ -32,6 +31,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.PTable.StorageScheme;
 
 /**
@@ -64,8 +64,9 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
     private static final int RESERVED_RANGE_SIZE = ENCODED_CQ_COUNTER_INITIAL_VALUE - ENCODED_EMPTY_COLUMN_NAME;
     // Used by iterators to figure out if the list was structurally modified.
     private int modCount = 0;
+    private final QualifierEncodingScheme encodingScheme;
 
-    public EncodedColumnQualiferCellsList(int minQ, int maxQ) {
+    public EncodedColumnQualiferCellsList(int minQ, int maxQ, QualifierEncodingScheme encodingScheme) {
         checkArgument(minQ <= maxQ, "Invalid arguments. Min: " + minQ
                 + ". Max: " + maxQ);
         this.minQualifier = minQ;
@@ -80,6 +81,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
         }
         this.array = new Cell[size];
         this.nonReservedRangeOffset = minQ > ENCODED_CQ_COUNTER_INITIAL_VALUE ? minQ  - ENCODED_CQ_COUNTER_INITIAL_VALUE : 0;
+        this.encodingScheme = encodingScheme;
     }
 
     @Override
@@ -131,7 +133,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
         if (e == null) {
             throw new NullPointerException();
         }
-        int columnQualifier = getEncodedColumnQualifier(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());
+        int columnQualifier = encodingScheme.getDecodedValue(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());
                 
         checkQualifierRange(columnQualifier);
         int idx = getArrayIndex(columnQualifier);
@@ -231,7 +233,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
             ListIterator<Cell> listItr = this.listIterator();
             while (listItr.hasNext()) {
                 Cell cellInThis = listItr.next();
-                int qualifier = getEncodedColumnQualifier(cellInThis.getQualifierArray(),
+                int qualifier = encodingScheme.getDecodedValue(cellInThis.getQualifierArray(),
                             cellInThis.getQualifierOffset(), cellInThis.getQualifierLength());
                 try {
                     Cell cellInParam = list.getCellForColumnQualifier(qualifier);
@@ -354,7 +356,12 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
         return new Itr();
     }
 
-    public Cell getCellForColumnQualifier(int columnQualifier) {
+    public Cell getCellForColumnQualifier(byte[] qualifierBytes) {
+        int columnQualifier = encodingScheme.getDecodedValue(qualifierBytes);
+        return getCellForColumnQualifier(columnQualifier);
+    }
+    
+    private Cell getCellForColumnQualifier(int columnQualifier) {
         checkQualifierRange(columnQualifier);
         int idx = getArrayIndex(columnQualifier);
         Cell c = array[idx];
@@ -510,7 +517,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
             if (lastRet == -1) {
                 throw new IllegalStateException();
             }
-            int columnQualifier = getEncodedColumnQualifier(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());                    
+            int columnQualifier = encodingScheme.getDecodedValue(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());                    
             int idx = getArrayIndex(columnQualifier);
             if (idx != lastRet) {
                 throw new IllegalArgumentException("Cell " + e + " with column qualifier "

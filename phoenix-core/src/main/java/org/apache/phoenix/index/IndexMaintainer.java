@@ -17,8 +17,6 @@
  */
 package org.apache.phoenix.index;
 
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
-
 import java.io.ByteArrayInputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -83,6 +81,7 @@ import org.apache.phoenix.schema.PDatum;
 import org.apache.phoenix.schema.PIndexState;
 import org.apache.phoenix.schema.PTable;
 import org.apache.phoenix.schema.PTable.IndexType;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.PTable.StorageScheme;
 import org.apache.phoenix.schema.PTableType;
 import org.apache.phoenix.schema.RowKeySchema;
@@ -322,8 +321,8 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
     private int maxTrailingNulls;
     private ColumnReference dataEmptyKeyValueRef;
     private boolean rowKeyOrderOptimizable;
-    private boolean usesEncodedColumnNames;
     private ImmutableBytesPtr emptyKeyValueQualifierPtr;
+    private QualifierEncodingScheme encodingScheme;
     
     private IndexMaintainer(RowKeySchema dataRowKeySchema, boolean isDataTableSalted) {
         this.dataRowKeySchema = dataRowKeySchema;
@@ -337,7 +336,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
         this.isMultiTenant = dataTable.isMultiTenant();
         this.viewIndexId = index.getViewIndexId() == null ? null : MetaDataUtil.getViewIndexIdDataType().toBytes(index.getViewIndexId());
         this.isLocalIndex = index.getIndexType() == IndexType.LOCAL;
-        this.usesEncodedColumnNames = EncodedColumnsUtil.usesEncodedColumnNames(index);
+        this.encodingScheme = index.getEncodingScheme();
         byte[] indexTableName = index.getPhysicalName().getBytes();
         // Use this for the nDataSaltBuckets as we need this for local indexes
         // TODO: persist nDataSaltBuckets separately, but maintain b/w compat.
@@ -508,8 +507,8 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
             PColumnFamily family = index.getColumnFamilies().get(i);
             for (PColumn indexColumn : family.getColumns()) {
                 PColumn dataColumn = IndexUtil.getDataColumn(dataTable, indexColumn.getName().getString());
-                byte[] dataColumnCq = EncodedColumnsUtil.getColumnQualifier(dataColumn, dataTable);
-                byte[] indexColumnCq = EncodedColumnsUtil.getColumnQualifier(indexColumn, index);
+                byte[] dataColumnCq = dataColumn.getColumnQualifierBytes();
+                byte[] indexColumnCq = indexColumn.getColumnQualifierBytes();
                 this.coveredColumns.add(new ColumnReference(dataColumn.getFamilyName().getBytes(), dataColumnCq));
                 this.coveredColumnsMap.put(new ColumnReference(dataColumn.getFamilyName().getBytes(), dataColumnCq), 
                         new ColumnReference(indexColumn.getFamilyName().getBytes(), indexColumnCq));
@@ -953,7 +952,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
                 int maxIndex = Integer.MIN_VALUE;
                 // find the max col qualifier
                 for (Pair<ColumnReference, ColumnReference> colRefPair : colRefPairs) {
-                    int qualifier = getEncodedColumnQualifier(colRefPair.getFirst().getQualifier());
+                    int qualifier = encodingScheme.getDecodedValue(colRefPair.getFirst().getQualifier());
                     maxIndex = Math.max(maxIndex, qualifier);
                 }
                 byte[][] colValues = new byte[maxIndex+1][];
@@ -961,7 +960,6 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
                 for (Pair<ColumnReference, ColumnReference> colRefPair : colRefPairs) {
                 	ColumnReference indexColRef = colRefPair.getFirst();
                 	ColumnReference dataColRef = colRefPair.getSecond();
-                	int dataArrayPos = getEncodedColumnQualifier(dataColRef.getQualifier());
                 	Expression expression = new ArrayColumnExpression(new PDatum() {
 						@Override
 						public boolean isNullable() {
@@ -987,12 +985,12 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
 						public PDataType getDataType() {
 							return null;
 						}
-					}, dataColRef.getFamily(), dataArrayPos);
+					}, dataColRef.getFamily(), dataColRef.getQualifier(), encodingScheme);
                 	ImmutableBytesPtr ptr = new ImmutableBytesPtr();
                     expression.evaluate(new ValueGetterTuple(valueGetter), ptr);
                     byte[] value = ptr.copyBytesIfNecessary();
 					if (value != null) {
-						int indexArrayPos = getEncodedColumnQualifier(indexColRef.getQualifier());
+						int indexArrayPos = encodingScheme.getDecodedValue(indexColRef.getQualifier());
                         colValues[indexArrayPos] = value;
                     }
                 }
@@ -1241,8 +1239,6 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
         
         if (isNewClient) {
             int numIndexedExpressions = WritableUtils.readVInt(input);
-            usesEncodedColumnNames = numIndexedExpressions > 0;
-            numIndexedExpressions = Math.abs(numIndexedExpressions) - 1;
             indexedExpressions = Lists.newArrayListWithExpectedSize(numIndexedExpressions);        
             for (int i = 0; i < numIndexedExpressions; i++) {
             	Expression expression = ExpressionType.values()[WritableUtils.readVInt(input)].newInstance();
@@ -1311,6 +1307,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
             byte[] dataTableCq = Bytes.readByteArray(input);
             coveredColumnsInfo.add(new Pair<>(Bytes.toString(dataTableCf), Bytes.toString(dataTableCq)));
         }
+        encodingScheme = WritableUtils.readEnum(input, QualifierEncodingScheme.class);
         storeColsInSingleCell = WritableUtils.readVInt(input) > 0;
         initCachedState();
     }
@@ -1351,10 +1348,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
         // when indexedColumnTypes is removed, remove this 
         WritableUtils.writeVInt(output,-emptyKeyValueCFPtr.getLength());
         output.write(emptyKeyValueCFPtr.get(),emptyKeyValueCFPtr.getOffset(), emptyKeyValueCFPtr.getLength());
-        
-        // Hack to encode usesEncodedColumnNames in indexedExpressions size.
-        int indexedExpressionsSize = (indexedExpressions.size() + 1) * (usesEncodedColumnNames ? 1 : -1);
-        WritableUtils.writeVInt(output, indexedExpressionsSize);
+        WritableUtils.writeVInt(output, indexedExpressions.size());
         for (Expression expression : indexedExpressions) {
         	WritableUtils.writeVInt(output, ExpressionType.valueOf(expression).ordinal());
         	expression.write(output);
@@ -1375,6 +1369,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
             Bytes.writeByteArray(output, colInfo.getFirst() == null ? null : colInfo.getFirst().getBytes());
             Bytes.writeByteArray(output, colInfo.getSecond().getBytes());
         }
+        WritableUtils.writeEnum(output, encodingScheme);
         WritableUtils.writeVInt(output, storeColsInSingleCell ? 1 : -1);
     }
 
@@ -1422,7 +1417,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
      * Init calculated state reading/creating
      */
     private void initCachedState() {
-        byte[] emptyKvQualifier = EncodedColumnsUtil.getEmptyKeyValueInfo(usesEncodedColumnNames).getFirst();
+        byte[] emptyKvQualifier = EncodedColumnsUtil.getEmptyKeyValueInfo(encodingScheme).getFirst();
         dataEmptyKeyValueRef = new ColumnReference(emptyKeyValueCFPtr.copyBytesIfNecessary(), emptyKvQualifier);
         emptyKeyValueQualifierPtr = new ImmutableBytesPtr(emptyKvQualifier);
         this.allColumns = Sets.newLinkedHashSetWithExpectedSize(indexedExpressions.size() + coveredColumns.size());

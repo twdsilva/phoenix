@@ -107,6 +107,7 @@ abstract public class BaseScannerRegionObserver extends BaseRegionObserver {
     public static final String SCAN_STOP_ROW_SUFFIX = "_ScanStopRowSuffix";
     public final static String MIN_QUALIFIER = "_MinQualifier";
     public final static String MAX_QUALIFIER = "_MaxQualifier";
+    public final static String QUALIFIER_ENCODING_SCHEME = "_QualifierEncodingScheme";
     
     /**
      * Attribute name used to pass custom annotations in Scans and Mutations (later). Custom annotations

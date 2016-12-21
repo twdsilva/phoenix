@@ -17,11 +17,14 @@
  */
 package org.apache.phoenix.schema;
 
+import static org.apache.phoenix.util.EncodedColumnsUtil.usesEncodedColumnNames;
+
 import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.phoenix.util.EncodedColumnsUtil;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
+import org.apache.phoenix.util.SchemaUtil;
 import org.apache.phoenix.util.SizedUtil;
 
 import com.google.common.base.Preconditions;
@@ -34,7 +37,7 @@ public class PColumnFamilyImpl implements PColumnFamily {
     private final List<PColumn> columns;
     private final Map<String, PColumn> columnNamesByStrings;
     private final Map<byte[], PColumn> columnNamesByBytes;
-    private final Map<byte[], PColumn> encodedColumnQualifersByBytes;
+    private final Map<byte[], PColumn> columnsByQualifiers;
     private final int estimatedSize;
 
     @Override
@@ -42,7 +45,7 @@ public class PColumnFamilyImpl implements PColumnFamily {
         return estimatedSize;
     }
     
-    public PColumnFamilyImpl(PName name, List<PColumn> columns, boolean useEncodedColumnNames) {
+    public PColumnFamilyImpl(PName name, List<PColumn> columns) {
         Preconditions.checkNotNull(name);
         // Include guidePosts also in estimating the size
         long estimatedSize = SizedUtil.OBJECT_SIZE + SizedUtil.POINTER_SIZE * 5 + SizedUtil.INT_SIZE + name.getEstimatedSize() +
@@ -51,18 +54,21 @@ public class PColumnFamilyImpl implements PColumnFamily {
         this.columns = ImmutableList.copyOf(columns);
         ImmutableMap.Builder<String, PColumn> columnNamesByStringBuilder = ImmutableMap.builder();
         ImmutableSortedMap.Builder<byte[], PColumn> columnNamesByBytesBuilder = ImmutableSortedMap.orderedBy(Bytes.BYTES_COMPARATOR);
-        ImmutableSortedMap.Builder<byte[], PColumn> encodedColumnQualifiersByBytesBuilder = ImmutableSortedMap.orderedBy(Bytes.BYTES_COMPARATOR);
+        ImmutableSortedMap.Builder<byte[], PColumn> columnsByQualifiersBuilder = ImmutableSortedMap.orderedBy(Bytes.BYTES_COMPARATOR);
         for (PColumn column : columns) {
             estimatedSize += column.getEstimatedSize();
             columnNamesByBytesBuilder.put(column.getName().getBytes(), column);
             columnNamesByStringBuilder.put(column.getName().getString(), column);
-            if (useEncodedColumnNames && column.getEncodedColumnQualifier() != null) {
-                encodedColumnQualifiersByBytesBuilder.put(EncodedColumnsUtil.getEncodedColumnQualifier(column), column);
+            // In certain cases like JOIN, PK columns are assigned a column family. So they
+            // are not evaluated as a PK column. However, their column qualifier bytes are
+            // still null.
+            if (!SchemaUtil.isPKColumn(column) && column.getColumnQualifierBytes() != null) {
+                columnsByQualifiersBuilder.put(column.getColumnQualifierBytes(), column);
             }
         }
         this.columnNamesByBytes = columnNamesByBytesBuilder.build();
         this.columnNamesByStrings = columnNamesByStringBuilder.build();
-        this.encodedColumnQualifersByBytes =  encodedColumnQualifiersByBytesBuilder.build();
+        this.columnsByQualifiers =  columnsByQualifiersBuilder.build();
         this.estimatedSize = (int)estimatedSize;
     }
     
@@ -94,16 +100,21 @@ public class PColumnFamilyImpl implements PColumnFamily {
         return column;
     }
     
+    
+    //TODO: FIXME: samarth think about backward compatibility here since older tables won't have column qualifiers in their metadata
     @Override
     public PColumn getPColumnForColumnQualifier(byte[] cq) throws ColumnNotFoundException {
         Preconditions.checkNotNull(cq);
-        PColumn column = encodedColumnQualifersByBytes.get(cq);
-        if (column == null) {
-            // For tables with non-encoded column names, column qualifiers are
-            // column name bytes. Also dynamic columns don't have encoded column
-            // qualifiers. So they could be found in the column name by bytes map.
-            return getPColumnForColumnNameBytes(cq);
-        }
-        return column;
+        return columnsByQualifiers.get(cq);
+//        if (encodedColumnQualifiers) {
+//            return columnsByQualifiers.get(cq);
+//        }
+//        /*
+//         * For tables with non-encoded column names, column qualifiers are
+//         * column name bytes. Also dynamic columns don't have encoded column
+//         * qualifiers. So they could be found in the column name by bytes map.
+//         */
+//        return getPColumnForColumnNameBytes(cq);
+
     }
 }

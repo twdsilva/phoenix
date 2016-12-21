@@ -485,11 +485,13 @@ public class ProjectionCompiler {
                 }
             } else {
                 for (byte[] cq : entry.getValue()) {
-                    PColumn column = family.getPColumnForColumnQualifier(cq);
-                    Integer maxLength = column.getMaxLength();
-                    int byteSize = column.getDataType().isFixedWidth() ? maxLength == null ? column.getDataType().getByteSize() : maxLength : RowKeySchema.ESTIMATED_VARIABLE_LENGTH_SIZE;
-                    estimatedByteSize += SizedUtil.KEY_VALUE_SIZE + estimatedKeySize + byteSize;
-                }
+                    //if (!Bytes.equals(cq, ByteUtil.EMPTY_BYTE_ARRAY) || cq.length > 0) {
+                        PColumn column = family.getPColumnForColumnQualifier(cq);
+                        Integer maxLength = column.getMaxLength();
+                        int byteSize = column.getDataType().isFixedWidth() ? maxLength == null ? column.getDataType().getByteSize() : maxLength : RowKeySchema.ESTIMATED_VARIABLE_LENGTH_SIZE;
+                        estimatedByteSize += SizedUtil.KEY_VALUE_SIZE + estimatedKeySize + byteSize;
+                    }
+                //}
             }
         }
         boolean isProjectEmptyKeyValue = false;
@@ -665,7 +667,7 @@ public class ProjectionCompiler {
                          if (expression.getDataType().isArrayType()) {
                              indexProjectedColumns.add(expression);
                              PColumn col = expression.getColumn();
-                             KeyValueColumnExpression keyValueColumnExpression = new KeyValueColumnExpression(col, EncodedColumnsUtil.hasEncodedColumnName(col));
+                             KeyValueColumnExpression keyValueColumnExpression = new KeyValueColumnExpression(col);
                              indexKVs.add(keyValueColumnExpression);
                              copyOfChildren.set(0, keyValueColumnExpression);
                              Integer count = arrayExpressionCounts.get(expression);

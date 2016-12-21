@@ -17,7 +17,7 @@
  */
 package org.apache.phoenix.query;
 
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
+import static org.apache.phoenix.schema.PTable.QualifierEncodingScheme.FOUR_BYTE_QUALIFIERS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -46,7 +46,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testIterator() {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         int i = 0;
         populateListAndArray(list, cells);
@@ -80,7 +80,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testSize() {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         assertEquals(0, list.size());
         
         populateList(list);
@@ -98,7 +98,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testIsEmpty() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         assertTrue(list.isEmpty());
         populateList(list);
         assertFalse(list.isEmpty());
@@ -115,19 +115,19 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testContains() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         
         for (Cell c : cells) {
             assertTrue(list.contains(c));
         }
-        assertFalse(list.contains(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(13))));
+        assertFalse(list.contains(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(13))));
     }
     
     @Test
     public void testToArrayWithParam() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         Cell[] array = list.toArray(new Cell[0]);
@@ -136,7 +136,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testToArrayWithoutParam() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         Object[] array = list.toArray();
@@ -145,7 +145,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testRemove() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         assertTrue(list.remove(cells[0]));
@@ -154,21 +154,21 @@ public class EncodedColumnQualifierCellsListTest {
         assertEquals(5, list.size());
         assertTrue(list.remove(cells[3]));
         assertEquals(4, list.size());
-        assertFalse(list.remove(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(13))));
+        assertFalse(list.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(13))));
         assertEquals(4, list.size());
     }
     
     @Test
     public void testContainsAll() throws Exception {
-        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list1);
-        EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list2);
         assertTrue(list1.containsAll(list2));
-        list2.remove(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(11)));
+        list2.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(11)));
         assertTrue(list1.containsAll(list2));
         assertFalse(list2.containsAll(list1));
-        list2.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(13)));
+        list2.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(13)));
         assertFalse(list1.containsAll(list2));
         assertFalse(list2.containsAll(list1));
         List<Cell> arrayList = new ArrayList<>();
@@ -178,9 +178,9 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testAddAll() throws Exception {
-        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list1);
-        EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list2);
         /* 
          * Note that we don't care about equality of the element being added with the element already
@@ -191,7 +191,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testAddAllAtIndexFails() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list);
         try {
             list.addAll(0, new ArrayList<Cell>());
@@ -201,7 +201,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testRemoveAll() throws Exception {
-        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list1);
         ArrayList<Cell> list2 = new ArrayList<>();
         populateList(list2);
@@ -212,13 +212,13 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testRetainAll() throws Exception {
-        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list1 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list1);
-        EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list2);
         // retainAll won't be modifying the list1 since they both have the same elements equality wise
         assertFalse(list1.retainAll(list2));
-        list2.remove(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(12)));
+        list2.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(12)));
         assertTrue(list1.retainAll(list2));
         assertEquals(list1.size(), list2.size());
         for (Cell c : list1) {
@@ -228,7 +228,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testClear() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list);
         list.clear();
         assertTrue(list.isEmpty());
@@ -237,7 +237,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testGetIndex() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         for (int i = 0; i < cells.length; i++) {
@@ -247,7 +247,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testIndexOf() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         for (int i = 0; i < cells.length; i++) {
@@ -257,7 +257,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testLastIndexOf() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         populateListAndArray(list, cells);
         for (int i = 0; i < cells.length; i++) {
@@ -267,7 +267,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testListIterator() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] cells = new Cell[7];
         int i = 0;
         populateListAndArray(list, cells);
@@ -302,7 +302,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testListIteratorSet() {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] array = new Cell[7];
         populateListAndArray(list, array);
         ListIterator<Cell> itr = list.listIterator();
@@ -346,7 +346,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testListIteratorNextAndPrevious()  throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         Cell[] array = new Cell[7];
         populateListAndArray(list, array);
         ListIterator<Cell> itr = list.listIterator();
@@ -389,7 +389,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testSetNull() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         try {
             list.add(null);
             fail("Adding null elements to the list is not allowed");
@@ -400,7 +400,7 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testFailFastIterator() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list);
         int i = 0;
         Iterator<Cell> itr = list.iterator();
@@ -408,7 +408,7 @@ public class EncodedColumnQualifierCellsListTest {
             i++;
             try {
                 itr.next();
-                list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(0)));
+                list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
                 if (i == 2) {
                     fail("ConcurrentModificationException should have been thrown as the list is being modified while being iterated through");
                 }
@@ -422,25 +422,25 @@ public class EncodedColumnQualifierCellsListTest {
     
     @Test
     public void testFailFastListIterator() throws Exception {
-        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16);
+        EncodedColumnQualiferCellsList list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list);
         ListIterator<Cell> itr = list.listIterator();
         itr.next();
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(0)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
         try {
             itr.next();
             fail("ConcurrentModificationException should have been thrown as the list was modified without using iterator");
         } catch (ConcurrentModificationException expected) {
 
         }
-        list = new EncodedColumnQualiferCellsList(11, 16);
+        list = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list);
         itr = list.listIterator();
         itr.next();
         itr.next();
         itr.remove();
         itr.next();
-        list.remove(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(0)));
+        list.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
         try {
             itr.next();
             fail("ConcurrentModificationException should have been thrown as the list was modified without using iterator");
@@ -451,28 +451,28 @@ public class EncodedColumnQualifierCellsListTest {
     
     private void populateListAndArray(List<Cell> list, Cell[] cells) {
         // add elements in reserved range
-        list.add(cells[0] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(0)));
-        list.add(cells[1] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(5)));
-        list.add(cells[2] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(10)));
+        list.add(cells[0] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
+        list.add(cells[1] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(5)));
+        list.add(cells[2] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(10)));
 
         // add elements in qualifier range
-        list.add(cells[6] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(16)));
-        list.add(cells[4] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(12)));
-        list.add(cells[5] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(14)));
-        list.add(cells[3] = KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(11)));
+        list.add(cells[6] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(16)));
+        list.add(cells[4] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(12)));
+        list.add(cells[5] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(14)));
+        list.add(cells[3] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(11)));
     }
 
     private void populateList(List<Cell> list) {
         // add elements in reserved range
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(0)));
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(5)));
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(10)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(5)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(10)));
 
         // add elements in qualifier range
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(16)));
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(12)));
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(14)));
-        list.add(KeyValue.createFirstOnRow(row, cf, getEncodedColumnQualifier(11)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(16)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(12)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(14)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(11)));
     }
     
     private class DelegateCell implements Cell {

@@ -20,7 +20,7 @@ package org.apache.phoenix.schema;
 import static org.apache.phoenix.hbase.index.util.KeyValueBuilder.addQuietly;
 import static org.apache.phoenix.hbase.index.util.KeyValueBuilder.deleteQuietly;
 import static org.apache.phoenix.schema.SaltingUtil.SALTING_COLUMN;
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
+import static org.apache.phoenix.util.EncodedColumnsUtil.usesEncodedColumnNames;
 
 import java.io.IOException;
 import java.sql.DriverManager;
@@ -33,6 +33,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import javax.annotation.Nonnull;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HConstants;
@@ -119,7 +121,7 @@ public class PTableImpl implements PTable {
     private Map<byte[], PColumnFamily> familyByBytes;
     private Map<String, PColumnFamily> familyByString;
     private ListMultimap<String, PColumn> columnsByName;
-    private ListMultimap<Pair<String, Integer>, PColumn> kvColumnsByEncodedColumnNames;
+    private ListMultimap<KVColumnFamilyQualifier, PColumn> kvColumnsByEncodedQualifiers;
     private PName pkName;
     private Integer bucketNum;
     private RowKeySchema rowKeySchema;
@@ -160,8 +162,9 @@ public class PTableImpl implements PTable {
         this.physicalNames = Collections.emptyList();
         this.rowKeySchema = RowKeySchema.EMPTY_SCHEMA;
     }
-
-    public PTableImpl(PName tenantId, String schemaName, String tableName, long timestamp, List<PColumnFamily> families, boolean isNamespaceMapped) { // For base table of mapped VIEW
+    
+    // Constructor used at table creation time
+    public PTableImpl(PName tenantId, String schemaName, String tableName, long timestamp, List<PColumnFamily> families, boolean isNamespaceMapped) {
         Preconditions.checkArgument(tenantId==null || tenantId.getBytes().length > 0); // tenantId should be null or not empty
         this.tenantId = tenantId;
         this.name = PNameFactory.newName(SchemaUtil.getTableName(schemaName, tableName));
@@ -183,6 +186,32 @@ public class PTableImpl implements PTable {
         this.families = families;
         this.physicalNames = Collections.emptyList();
         this.isNamespaceMapped = isNamespaceMapped;
+    }
+    
+    public PTableImpl(PName tenantId, String schemaName, String tableName, long timestamp, List<PColumnFamily> families, boolean isNamespaceMapped, StorageScheme storageScheme, QualifierEncodingScheme encodingScheme) { // For base table of mapped VIEW
+        Preconditions.checkArgument(tenantId==null || tenantId.getBytes().length > 0); // tenantId should be null or not empty
+        this.tenantId = tenantId;
+        this.name = PNameFactory.newName(SchemaUtil.getTableName(schemaName, tableName));
+        this.key = new PTableKey(tenantId, name.getString());
+        this.schemaName = PNameFactory.newName(schemaName);
+        this.tableName = PNameFactory.newName(tableName);
+        this.type = PTableType.VIEW;
+        this.viewType = ViewType.MAPPED;
+        this.timeStamp = timestamp;
+        this.pkColumns = this.allColumns = Collections.emptyList();
+        this.rowKeySchema = RowKeySchema.EMPTY_SCHEMA;
+        this.indexes = Collections.emptyList();
+        this.familyByBytes = Maps.newHashMapWithExpectedSize(families.size());
+        this.familyByString = Maps.newHashMapWithExpectedSize(families.size());
+        for (PColumnFamily family : families) {
+            familyByBytes.put(family.getName().getBytes(), family);
+            familyByString.put(family.getName().getString(), family);
+        }
+        this.families = families;
+        this.physicalNames = Collections.emptyList();
+        this.isNamespaceMapped = isNamespaceMapped;
+        this.storageScheme = storageScheme;
+        this.qualifierEncodingScheme = encodingScheme;
     }
     
     // For indexes stored in shared physical tables
@@ -452,7 +481,7 @@ public class PTableImpl implements PTable {
         PColumn[] allColumns;
         
         this.columnsByName = ArrayListMultimap.create(columns.size(), 1);
-        this.kvColumnsByEncodedColumnNames = (EncodedColumnsUtil.usesEncodedColumnNames(qualifierEncodingScheme) ? ArrayListMultimap.<Pair<String, Integer>, PColumn>create(columns.size(), 1) : null);
+        this.kvColumnsByEncodedQualifiers = ArrayListMultimap.<KVColumnFamilyQualifier, PColumn>create(columns.size(), 1);
         int numPKColumns = 0;
         if (bucketNum != null) {
             // Add salt column to allColumns and pkColumns, but don't add to
@@ -465,6 +494,7 @@ public class PTableImpl implements PTable {
             allColumns = new PColumn[columns.size()];
             pkColumns = Lists.newArrayListWithExpectedSize(columns.size());
         }
+        boolean encodedColumnQualifiers = usesEncodedColumnNames(qualifierEncodingScheme);
         for (PColumn column : columns) {
             allColumns[column.getPosition()] = column;
             PName familyName = column.getFamilyName();
@@ -483,20 +513,18 @@ public class PTableImpl implements PTable {
                     }
                 }
             }
-            //TODO: samarth understand the implication of this.
-            if (kvColumnsByEncodedColumnNames != null) {
-                Integer cq = column.getEncodedColumnQualifier();
-                String cf = column.getFamilyName() != null ? column.getFamilyName().getString() : null;
-                if (cf != null && cq != null) {
-                    Pair<String, Integer> pair = new Pair<>(cf, cq);
-                    if (kvColumnsByEncodedColumnNames.put(pair, column)) {
-                        int count = 0;
-                        for (PColumn dupColumn : kvColumnsByEncodedColumnNames.get(pair)) {
-                            if (Objects.equal(familyName, dupColumn.getFamilyName())) {
-                                count++;
-                                if (count > 1) {
-                                    throw new ColumnAlreadyExistsException(schemaName.getString(), name.getString(), columnName);
-                                }
+            byte[] cq = column.getColumnQualifierBytes();
+            String cf = column.getFamilyName() != null ? column.getFamilyName().getString() : null;
+            if (cf != null && cq != null && encodedColumnQualifiers) {
+                KVColumnFamilyQualifier info = new KVColumnFamilyQualifier(cf, cq);
+                if (kvColumnsByEncodedQualifiers.put(info, column)) {
+                    int count = 0;
+                    for (PColumn dupColumn : kvColumnsByEncodedQualifiers.get(info)) {
+                        if (Objects.equal(familyName, dupColumn.getFamilyName())) {
+                            count++;
+                            if (count > 1) {
+                                throw new ColumnAlreadyExistsException(schemaName.getString(),
+                                        name.getString(), columnName);
                             }
                         }
                     }
@@ -561,7 +589,7 @@ public class PTableImpl implements PTable {
                 .orderedBy(Bytes.BYTES_COMPARATOR);
         for (int i = 0; i < families.length; i++) {
             Map.Entry<PName,List<PColumn>> entry = iterator.next();
-            PColumnFamily family = new PColumnFamilyImpl(entry.getKey(), entry.getValue(), EncodedColumnsUtil.usesEncodedColumnNames(qualifierEncodingScheme));
+            PColumnFamily family = new PColumnFamilyImpl(entry.getKey(), entry.getValue());//, qualifierEncodingScheme);
             families[i] = family;
             familyByString.put(family.getName().getString(), family);
             familyByBytes.put(family.getName().getBytes(), family);
@@ -806,9 +834,8 @@ public class PTableImpl implements PTable {
             String columnName = (String)PVarchar.INSTANCE.toObject(cq);
             return getPColumnForColumnName(columnName);
         } else {
-            Integer qualifier = getEncodedColumnQualifier(cq);
             String family = (String)PVarchar.INSTANCE.toObject(cf);
-            List<PColumn> columns = kvColumnsByEncodedColumnNames.get(new Pair<>(family, qualifier));
+            List<PColumn> columns = kvColumnsByEncodedQualifiers.get(new KVColumnFamilyQualifier(family, cq));
             int size = columns.size();
             if (size == 0) {
                 //TODO: samarth should we have a column qualifier not found exception?
@@ -898,7 +925,8 @@ public class PTableImpl implements PTable {
                         Collection<PColumn> columns = family.getColumns();
                         int maxEncodedColumnQualifier = Integer.MIN_VALUE;
                         for (PColumn column : columns) {
-                            maxEncodedColumnQualifier = Math.max(maxEncodedColumnQualifier, column.getEncodedColumnQualifier());
+                            int qualifier = qualifierEncodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+                            maxEncodedColumnQualifier = Math.max(maxEncodedColumnQualifier, qualifier);
                         }
                         Expression[] colValues = new Expression[maxEncodedColumnQualifier+1];
                         Arrays.fill(colValues, new DelegateExpression(LiteralExpression.newConstant(null)) {
@@ -911,7 +939,8 @@ public class PTableImpl implements PTable {
                         colValues[0]=LiteralExpression.newConstant(QueryConstants.EMPTY_COLUMN_VALUE_BYTES);
                         for (PColumn column : columns) {
                         	if (columnToValueMap.containsKey(column)) {
-                        		colValues[column.getEncodedColumnQualifier()] = new LiteralExpression(columnToValueMap.get(column));
+                        	    int qualifier = qualifierEncodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+                        		colValues[qualifier] = new LiteralExpression(columnToValueMap.get(column));
                         	}
                         }
                         
@@ -963,7 +992,7 @@ public class PTableImpl implements PTable {
         public void setValue(PColumn column, byte[] byteValue) {
             deleteRow = null;
             byte[] family = column.getFamilyName().getBytes();
-            byte[] qualifier = getColumnQualifier(column);
+            byte[] qualifier = column.getColumnQualifierBytes();
             ImmutableBytesPtr qualifierPtr = new ImmutableBytesPtr(qualifier);
             PDataType<?> type = column.getDataType();
             // Check null, since some types have no byte representation for null
@@ -1039,10 +1068,6 @@ public class PTableImpl implements PTable {
             if (isWALDisabled()) {
                 deleteRow.setDurability(Durability.SKIP_WAL);
             }
-        }
-        
-        private byte[] getColumnQualifier(PColumn column) {
-            return EncodedColumnsUtil.getColumnQualifier(column, PTableImpl.this);
         }
         
     }
@@ -1509,5 +1534,40 @@ public class PTableImpl implements PTable {
     @Override
     public QualifierEncodingScheme getEncodingScheme() {
         return qualifierEncodingScheme;
+    }
+    
+    private static final class KVColumnFamilyQualifier {
+        @Nonnull
+        private final String colFamilyName;
+        @Nonnull
+        private final byte[] colQualifier;
+
+        public KVColumnFamilyQualifier(String colFamilyName, byte[] colQualifier) {
+            Preconditions.checkArgument(colFamilyName != null && colQualifier != null,
+                "None of the arguments, column family name or column qualifier can be null");
+            this.colFamilyName = colFamilyName;
+            this.colQualifier = colQualifier;
+        }
+
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + colFamilyName.hashCode();
+            result = prime * result + Arrays.hashCode(colQualifier);
+            return result;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
+            KVColumnFamilyQualifier other = (KVColumnFamilyQualifier) obj;
+            if (!colFamilyName.equals(other.colFamilyName)) return false;
+            if (!Arrays.equals(colQualifier, other.colQualifier)) return false;
+            return true;
+        }
+
     }
 }

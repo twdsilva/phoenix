@@ -28,7 +28,6 @@ import org.apache.phoenix.expression.visitor.ExpressionVisitor;
 import org.apache.phoenix.schema.PColumn;
 import org.apache.phoenix.schema.PDatum;
 import org.apache.phoenix.schema.tuple.Tuple;
-import org.apache.phoenix.util.EncodedColumnsUtil;
 import org.apache.phoenix.util.SchemaUtil;
 
 
@@ -46,22 +45,27 @@ public class KeyValueColumnExpression extends ColumnExpression {
 
     public KeyValueColumnExpression() {
     }
-
-    public KeyValueColumnExpression(PColumn column, boolean encodedColumnName) {
-        this(column, null, encodedColumnName);
+    
+    public KeyValueColumnExpression(PColumn column) {
+        super(column);
+        this.cf = column.getFamilyName().getBytes();
+        // for backward compatibility since older tables won't have columnQualifierBytes in their metadata
+        this.cq = column.getColumnQualifierBytes() != null ? column.getColumnQualifierBytes() : column.getName().getBytes();
+        this.displayName = column.getName().getString();
+    }
+    
+    public KeyValueColumnExpression(PColumn column, String displayName) {
+        super(column);
+        this.cf = column.getFamilyName().getBytes();
+        // for backward compatibility since older tables won't have columnQualifierBytes in their metadata
+        this.cq = column.getColumnQualifierBytes() != null ? column.getColumnQualifierBytes() : column.getName().getBytes();
+        this.displayName = displayName;
     }
 
     public KeyValueColumnExpression(PDatum column, byte[] cf, byte[] cq) {
         super(column);
         this.cf = cf;
         this.cq = cq;
-    }
-
-    public KeyValueColumnExpression(PColumn column, String displayName, boolean encodedColumnName) {
-        super(column);
-        this.cf = column.getFamilyName().getBytes();
-        this.cq = EncodedColumnsUtil.getColumnQualifier(column, encodedColumnName);
-        this.displayName = displayName;
     }
 
     public byte[] getColumnFamily() {
@@ -124,4 +128,8 @@ public class KeyValueColumnExpression extends ColumnExpression {
     public <T> T accept(ExpressionVisitor<T> visitor) {
         return visitor.visit(this);
     }
+    
+//    public void setDisplayName(String displayName) {
+//        this.displayName = displayName;
+//    }
 }

@@ -304,11 +304,11 @@ public class TestUtil {
     }
 
     public static Expression constantComparison(CompareOp op, PColumn c, Object o) {
-        return  new ComparisonExpression(Arrays.<Expression>asList(new KeyValueColumnExpression(c, true), LiteralExpression.newConstant(o)), op);
+        return  new ComparisonExpression(Arrays.<Expression>asList(new KeyValueColumnExpression(c), LiteralExpression.newConstant(o)), op);
     }
 
     public static Expression kvColumn(PColumn c) {
-        return new KeyValueColumnExpression(c, true);
+        return new KeyValueColumnExpression(c);
     }
 
     public static Expression pkColumn(PColumn c, List<PColumn> columns) {
@@ -725,10 +725,10 @@ public class TestUtil {
                     return false;
                 }
                 @Override
-                public Integer getEncodedColumnQualifier() {
-                    return null;
+                public byte[] getColumnQualifierBytes() {
+                    return SINGLE_COLUMN_NAME.getBytes();
                 }
-            }, false)), null);
+            })), null);
             aggregationManager.setAggregators(new ClientAggregators(Collections.<SingleAggregateFunction>singletonList(func), 1));
             ClientAggregators aggregators = aggregationManager.getAggregators();
             return aggregators;

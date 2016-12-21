@@ -47,7 +47,7 @@ message PColumn {
   optional string expression = 12;
   optional bool isRowTimestamp = 13;
   optional bool isDynamic = 14;
-  optional int32 encodedColumnQualifier = 15;
+  optional bytes columnQualifierBytes = 15;
 }
 
 message PTableStats {

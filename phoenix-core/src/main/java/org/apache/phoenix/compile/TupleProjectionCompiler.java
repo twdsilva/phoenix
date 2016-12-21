@@ -123,7 +123,7 @@ public class TupleProjectionCompiler {
             PColumn sourceColumn = table.getPKColumns().get(i);
             ColumnRef sourceColumnRef = new ColumnRef(tableRef, sourceColumn.getPosition());
             PColumn column = new ProjectedColumn(sourceColumn.getName(), sourceColumn.getFamilyName(), 
-                    position++, sourceColumn.isNullable(), sourceColumnRef);
+                    position++, sourceColumn.isNullable(), sourceColumnRef, null);
             projectedColumns.add(column);
         }
         for (PColumn sourceColumn : table.getColumns()) {
@@ -135,7 +135,7 @@ public class TupleProjectionCompiler {
                     && !families.contains(sourceColumn.getFamilyName().getString()))
                 continue;
             PColumn column = new ProjectedColumn(sourceColumn.getName(), sourceColumn.getFamilyName(), 
-                    position++, sourceColumn.isNullable(), sourceColumnRef);
+                    position++, sourceColumn.isNullable(), sourceColumnRef, sourceColumn.getColumnQualifierBytes());
             projectedColumns.add(column);
             // Wildcard or FamilyWildcard will be handled by ProjectionCompiler.
             if (!isWildcard && !families.contains(sourceColumn.getFamilyName())) {
@@ -146,7 +146,7 @@ public class TupleProjectionCompiler {
         for (LocalIndexDataColumnRef sourceColumnRef : visitor.localIndexColumnRefSet) {
             PColumn column = new ProjectedColumn(sourceColumnRef.getColumn().getName(), 
                     sourceColumnRef.getColumn().getFamilyName(), position++, 
-                    sourceColumnRef.getColumn().isNullable(), sourceColumnRef);
+                    sourceColumnRef.getColumn().isNullable(), sourceColumnRef, sourceColumnRef.getColumn().getColumnQualifierBytes());
             projectedColumns.add(column);
         }
         
@@ -176,7 +176,7 @@ public class TupleProjectionCompiler {
             PColumn column = new ProjectedColumn(PNameFactory.newName(aliasedName), 
                     retainPKColumns && SchemaUtil.isPKColumn(sourceColumn) ? 
                             null : PNameFactory.newName(VALUE_COLUMN_FAMILY), 
-                    position++, sourceColumn.isNullable(), sourceColumnRef);
+                    position++, sourceColumn.isNullable(), sourceColumnRef, sourceColumn.getColumnQualifierBytes());
             projectedColumns.add(column);
         }
         EncodedCQCounter cqCounter = EncodedCQCounter.NULL_COUNTER;

@@ -26,7 +26,6 @@ import static org.apache.phoenix.monitoring.GlobalClientMetrics.GLOBAL_QUERY_TIM
 import static org.apache.phoenix.schema.PTable.IndexType.LOCAL;
 import static org.apache.phoenix.schema.PTableType.INDEX;
 import static org.apache.phoenix.util.ByteUtil.EMPTY_BYTE_ARRAY;
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInput;
@@ -87,6 +86,7 @@ import org.apache.phoenix.query.QueryServicesOptions;
 import org.apache.phoenix.schema.PColumnFamily;
 import org.apache.phoenix.schema.PTable;
 import org.apache.phoenix.schema.PTable.IndexType;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.PTable.StorageScheme;
 import org.apache.phoenix.schema.PTable.ViewType;
 import org.apache.phoenix.schema.StaleRegionBoundaryCacheException;
@@ -248,13 +248,14 @@ public abstract class BaseResultIterators extends ExplainTable implements Result
                     ScanUtil.andFilterAtEnd(scan, new PageFilter(plan.getLimit()));
                 }
             }
+            scan.setAttribute(BaseScannerRegionObserver.QUALIFIER_ENCODING_SCHEME, new byte[]{table.getEncodingScheme().getSerializedMetadataValue()});
             // When analyzing the table, there is no look up for key values being done.
             // So there is no point setting the range.
             if (EncodedColumnsUtil.setQualifierRanges(table) && !ScanUtil.isAnalyzeTable(scan)) {
                 Pair<Integer, Integer> range = getEncodedQualifierRange(scan, context);
                 if (range != null) {
-                    scan.setAttribute(BaseScannerRegionObserver.MIN_QUALIFIER, getEncodedColumnQualifier(range.getFirst()));
-                    scan.setAttribute(BaseScannerRegionObserver.MAX_QUALIFIER, getEncodedColumnQualifier(range.getSecond()));
+                    scan.setAttribute(BaseScannerRegionObserver.MIN_QUALIFIER, Bytes.toBytes(range.getFirst()));
+                    scan.setAttribute(BaseScannerRegionObserver.MAX_QUALIFIER, Bytes.toBytes(range.getSecond()));
                 }
             }
             if (optimizeProjection) {
@@ -266,25 +267,25 @@ public abstract class BaseResultIterators extends ExplainTable implements Result
     private static Pair<Integer, Integer> getEncodedQualifierRange(Scan scan, StatementContext context)
             throws SQLException {
         PTable table = context.getCurrentTable().getTable();
-        StorageScheme storageScheme = table.getStorageScheme();
-        checkArgument(storageScheme == StorageScheme.ONE_CELL_PER_KEYVALUE_COLUMN,
+        QualifierEncodingScheme encodingScheme = table.getEncodingScheme();
+        checkArgument(encodingScheme != QualifierEncodingScheme.NON_ENCODED_QUALIFIERS,
             "Method should only be used for tables using encoded column names");
         Pair<Integer, Integer> minMaxQualifiers = new Pair<>();
         for (Pair<byte[], byte[]> whereCol : context.getWhereConditionColumns()) {
             byte[] cq = whereCol.getSecond();
             if (cq != null) {
-                int qualifier = getEncodedColumnQualifier(cq);
+                int qualifier = table.getEncodingScheme().getDecodedValue(cq);
                 determineQualifierRange(qualifier, minMaxQualifiers);
             }
         }
         Map<byte[], NavigableSet<byte[]>> familyMap = scan.getFamilyMap();
 
-        Map<String, Pair<Integer, Integer>> qualifierRanges = EncodedColumnsUtil.getQualifierRanges(table);
+        Map<String, Pair<Integer, Integer>> qualifierRanges = EncodedColumnsUtil.getFamilyQualifierRanges(table);
         for (Entry<byte[], NavigableSet<byte[]>> entry : familyMap.entrySet()) {
             if (entry.getValue() != null) {
                 for (byte[] cq : entry.getValue()) {
                     if (cq != null) {
-                        int qualifier = getEncodedColumnQualifier(cq);
+                        int qualifier = table.getEncodingScheme().getDecodedValue(cq);
                         determineQualifierRange(qualifier, minMaxQualifiers);
                     }
                 }
@@ -299,8 +300,10 @@ public abstract class BaseResultIterators extends ExplainTable implements Result
                     family = IndexUtil.getLocalIndexColumnFamily(family);
                 }
                 Pair<Integer, Integer> range = qualifierRanges.get(family);
-                determineQualifierRange(range.getFirst(), minMaxQualifiers);
-                determineQualifierRange(range.getSecond(), minMaxQualifiers);
+                if (range != null) {
+                    determineQualifierRange(range.getFirst(), minMaxQualifiers);
+                    determineQualifierRange(range.getSecond(), minMaxQualifiers);
+                }
             }
         }
         if (minMaxQualifiers.getFirst() == null) {

@@ -17,8 +17,6 @@
  */
 package org.apache.phoenix.schema;
 
-import static org.apache.phoenix.util.EncodedColumnsUtil.usesEncodedColumnNames;
-
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -38,7 +36,6 @@ import org.apache.phoenix.jdbc.PhoenixStatement;
 import org.apache.phoenix.parse.ParseNode;
 import org.apache.phoenix.parse.SQLParser;
 import org.apache.phoenix.schema.PTable.StorageScheme;
-import org.apache.phoenix.util.EncodedColumnsUtil;
 import org.apache.phoenix.util.ExpressionUtil;
 import org.apache.phoenix.util.PhoenixRuntime;
 import org.apache.phoenix.util.SchemaUtil;
@@ -129,7 +126,7 @@ public class ColumnRef {
         }
 
         Expression expression = table.getStorageScheme() == StorageScheme.ONE_CELL_PER_COLUMN_FAMILY ? 
-        		new ArrayColumnExpression(column, displayName, EncodedColumnsUtil.usesEncodedColumnNames(table)) : new KeyValueColumnExpression(column, displayName, usesEncodedColumnNames(table));
+        		new ArrayColumnExpression(column, displayName, table.getEncodingScheme()) : new KeyValueColumnExpression(column, displayName);
 
         if (column.getExpressionStr() != null) {
             String url = PhoenixRuntime.JDBC_PROTOCOL
@@ -146,7 +143,6 @@ public class ColumnRef {
                 return new DefaultValueExpression(Arrays.asList(expression, defaultExpression));
             }
         }
-       
         return expression;
     }
 

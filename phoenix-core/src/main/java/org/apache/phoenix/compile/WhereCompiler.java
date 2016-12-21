@@ -175,7 +175,7 @@ public class WhereCompiler {
             Expression newColumnExpression = ref.newColumnExpression(node.isTableNameCaseSensitive(), node.isCaseSensitive());
             if (tableRef.equals(context.getCurrentTable()) && !SchemaUtil.isPKColumn(ref.getColumn())) {
                 byte[] cq = tableRef.getTable().getStorageScheme() == StorageScheme.ONE_CELL_PER_COLUMN_FAMILY 
-                		? QueryConstants.SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES : EncodedColumnsUtil.getColumnQualifier(ref.getColumn(), tableRef.getTable());
+                		? QueryConstants.SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES : ref.getColumn().getColumnQualifierBytes();
                 // track the where condition columns. Later we need to ensure the Scan in HRS scans these column CFs
                 context.addWhereCoditionColumn(ref.getColumn().getFamilyName().getBytes(), cq);
             }

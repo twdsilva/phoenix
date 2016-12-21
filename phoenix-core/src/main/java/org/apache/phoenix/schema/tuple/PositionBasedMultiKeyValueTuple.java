@@ -18,7 +18,6 @@
 package org.apache.phoenix.schema.tuple;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodedColumnQualifier;
 
 import java.util.List;
 
@@ -58,7 +57,7 @@ public class PositionBasedMultiKeyValueTuple extends BaseTuple {
 
     @Override
     public Cell getValue(byte[] family, byte[] qualifier) {
-        return values.getCellForColumnQualifier(getEncodedColumnQualifier(qualifier));
+        return values.getCellForColumnQualifier(qualifier);
     }
 
     @Override

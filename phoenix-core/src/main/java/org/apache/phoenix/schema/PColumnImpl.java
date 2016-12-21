@@ -40,7 +40,7 @@ public class PColumnImpl implements PColumn {
     private String expressionStr;
     private boolean isRowTimestamp;
     private boolean isDynamic;
-    private Integer columnQualifier;
+    private byte[] columnQualifierBytes;
     
     public PColumnImpl() {
     }
@@ -52,13 +52,13 @@ public class PColumnImpl implements PColumn {
                        Integer scale,
                        boolean nullable,
                        int position,
-                       SortOrder sortOrder, Integer arrSize, byte[] viewConstant, boolean isViewReferenced, String expressionStr, boolean isRowTimestamp, boolean isDynamic, Integer columnQualifier) {
-        init(name, familyName, dataType, maxLength, scale, nullable, position, sortOrder, arrSize, viewConstant, isViewReferenced, expressionStr, isRowTimestamp, isDynamic, columnQualifier);
+                       SortOrder sortOrder, Integer arrSize, byte[] viewConstant, boolean isViewReferenced, String expressionStr, boolean isRowTimestamp, boolean isDynamic, byte[] columnQualifierBytes) {
+        init(name, familyName, dataType, maxLength, scale, nullable, position, sortOrder, arrSize, viewConstant, isViewReferenced, expressionStr, isRowTimestamp, isDynamic, columnQualifierBytes);
     }
 
     public PColumnImpl(PColumn column, int position) {
         this(column.getName(), column.getFamilyName(), column.getDataType(), column.getMaxLength(),
-                column.getScale(), column.isNullable(), position, column.getSortOrder(), column.getArraySize(), column.getViewConstant(), column.isViewReferenced(), column.getExpressionStr(), column.isRowTimestamp(), column.isDynamic(), column.getEncodedColumnQualifier());
+                column.getScale(), column.isNullable(), position, column.getSortOrder(), column.getArraySize(), column.getViewConstant(), column.isViewReferenced(), column.getExpressionStr(), column.isRowTimestamp(), column.isDynamic(), column.getColumnQualifierBytes());
     }
 
     private void init(PName name,
@@ -70,7 +70,7 @@ public class PColumnImpl implements PColumn {
             int position,
             SortOrder sortOrder,
             Integer arrSize,
-            byte[] viewConstant, boolean isViewReferenced, String expressionStr, boolean isRowTimestamp, boolean isDynamic, Integer columnQualifier) {
+            byte[] viewConstant, boolean isViewReferenced, String expressionStr, boolean isRowTimestamp, boolean isDynamic, byte[] columnQualifierBytes) {
     	Preconditions.checkNotNull(sortOrder);
         this.dataType = dataType;
         if (familyName == null) {
@@ -95,7 +95,7 @@ public class PColumnImpl implements PColumn {
         this.expressionStr = expressionStr;
         this.isRowTimestamp = isRowTimestamp;
         this.isDynamic = isDynamic;
-        this.columnQualifier = columnQualifier;
+        this.columnQualifierBytes = columnQualifierBytes;
     }
 
     @Override
@@ -209,8 +209,8 @@ public class PColumnImpl implements PColumn {
     }
     
     @Override
-    public Integer getEncodedColumnQualifier() {
-        return columnQualifier;
+    public byte[] getColumnQualifierBytes() {
+        return columnQualifierBytes;
     }
 
     /**
@@ -258,12 +258,12 @@ public class PColumnImpl implements PColumn {
         if (column.hasIsDynamic()) {
         	isDynamic = column.getIsDynamic();
         }
-        Integer columnQualifier = null;
-        if (column.hasEncodedColumnQualifier()) {
-            columnQualifier = column.getEncodedColumnQualifier();
+        byte[] columnQualifierBytes = null;
+        if (column.hasColumnQualifierBytes()) {
+            columnQualifierBytes = column.getColumnQualifierBytes().toByteArray();
         }
         return new PColumnImpl(columnName, familyName, dataType, maxLength, scale, nullable, position, sortOrder,
-                arraySize, viewConstant, isViewReferenced, expressionStr, isRowTimestamp, isDynamic, columnQualifier);
+                arraySize, viewConstant, isViewReferenced, expressionStr, isRowTimestamp, isDynamic, columnQualifierBytes);
     }
 
     public static PTableProtos.PColumn toProto(PColumn column) {
@@ -294,8 +294,8 @@ public class PColumnImpl implements PColumn {
             builder.setExpression(column.getExpressionStr());
         }
         builder.setIsRowTimestamp(column.isRowTimestamp());
-        if (column.getEncodedColumnQualifier() != null) {
-            builder.setEncodedColumnQualifier(column.getEncodedColumnQualifier());
+        if (column.getColumnQualifierBytes() != null) {
+            builder.setColumnQualifierBytes(ByteStringer.wrap(column.getColumnQualifierBytes()));
         }
         return builder.build();
     }

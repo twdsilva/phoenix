@@ -25,13 +25,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
-import org.apache.phoenix.schema.types.PBinary;
-import org.apache.phoenix.schema.types.PDecimal;
 import org.apache.phoenix.schema.PColumn;
 import org.apache.phoenix.schema.PColumnImpl;
+import org.apache.phoenix.schema.PName;
 import org.apache.phoenix.schema.PNameFactory;
-import org.apache.phoenix.schema.types.PVarchar;
 import org.apache.phoenix.schema.SortOrder;
+import org.apache.phoenix.schema.types.PBinary;
+import org.apache.phoenix.schema.types.PDecimal;
+import org.apache.phoenix.schema.types.PVarchar;
 import org.junit.Test;
 
 public class ColumnExpressionTest {
@@ -40,9 +41,10 @@ public class ColumnExpressionTest {
     public void testSerialization() throws Exception {
         int maxLen = 30;
         int scale = 5;
-        PColumn column = new PColumnImpl(PNameFactory.newName("c1"), PNameFactory.newName("f1"), PDecimal.INSTANCE, maxLen, scale,
-                true, 20, SortOrder.getDefault(), 0, null, false, null, false, false, 0);
-        ColumnExpression colExp = new KeyValueColumnExpression(column, true);
+        PName colName = PNameFactory.newName("c1");
+        PColumn column = new PColumnImpl(colName, PNameFactory.newName("f1"), PDecimal.INSTANCE, maxLen, scale,
+                true, 20, SortOrder.getDefault(), 0, null, false, null, false, false, colName.getBytes());
+        ColumnExpression colExp = new KeyValueColumnExpression(column);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dOut = new DataOutputStream(baos);
         colExp.write(dOut);
@@ -60,9 +62,10 @@ public class ColumnExpressionTest {
     @Test
     public void testSerializationWithNullScale() throws Exception {
         int maxLen = 30;
-        PColumn column = new PColumnImpl(PNameFactory.newName("c1"), PNameFactory.newName("f1"), PBinary.INSTANCE, maxLen, null,
-                true, 20, SortOrder.getDefault(), 0, null, false, null, false, false, 0);
-        ColumnExpression colExp = new KeyValueColumnExpression(column, true);
+        PName colName = PNameFactory.newName("c1");
+        PColumn column = new PColumnImpl(colName, PNameFactory.newName("f1"), PBinary.INSTANCE, maxLen, null,
+                true, 20, SortOrder.getDefault(), 0, null, false, null, false, false, colName.getBytes());
+        ColumnExpression colExp = new KeyValueColumnExpression(column);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dOut = new DataOutputStream(baos);
         colExp.write(dOut);
@@ -80,9 +83,10 @@ public class ColumnExpressionTest {
     @Test
     public void testSerializationWithNullMaxLength() throws Exception {
         int scale = 5;
-        PColumn column = new PColumnImpl(PNameFactory.newName("c1"), PNameFactory.newName("f1"), PVarchar.INSTANCE, null, scale,
-                true, 20, SortOrder.getDefault(), 0, null, false, null, false, false, 0);
-        ColumnExpression colExp = new KeyValueColumnExpression(column, true);
+        PName colName = PNameFactory.newName("c1");
+        PColumn column = new PColumnImpl(colName, PNameFactory.newName("f1"), PVarchar.INSTANCE, null, scale,
+                true, 20, SortOrder.getDefault(), 0, null, false, null, false, false, colName.getBytes());
+        ColumnExpression colExp = new KeyValueColumnExpression(column);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dOut = new DataOutputStream(baos);
         colExp.write(dOut);
@@ -99,9 +103,10 @@ public class ColumnExpressionTest {
 
     @Test
     public void testSerializationWithNullScaleAndMaxLength() throws Exception {
-        PColumn column = new PColumnImpl(PNameFactory.newName("c1"), PNameFactory.newName("f1"), PDecimal.INSTANCE, null, null, true,
-                20, SortOrder.getDefault(), 0, null, false, null, false, false, 0);
-        ColumnExpression colExp = new KeyValueColumnExpression(column, true);
+        PName colName = PNameFactory.newName("c1");
+        PColumn column = new PColumnImpl(colName, PNameFactory.newName("f1"), PDecimal.INSTANCE, null, null, true,
+                20, SortOrder.getDefault(), 0, null, false, null, false, false, colName.getBytes());
+        ColumnExpression colExp = new KeyValueColumnExpression(column);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dOut = new DataOutputStream(baos);
         colExp.write(dOut);

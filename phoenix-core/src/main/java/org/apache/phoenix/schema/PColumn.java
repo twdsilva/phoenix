@@ -61,5 +61,5 @@ public interface PColumn extends PDatum {
     
     boolean isDynamic();
     
-    Integer getEncodedColumnQualifier();
+    byte[] getColumnQualifierBytes();
 }

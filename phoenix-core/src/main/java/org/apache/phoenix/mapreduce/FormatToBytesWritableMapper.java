@@ -220,7 +220,7 @@ public abstract class FormatToBytesWritableMapper<RECORD> extends Mapper<LongWri
                 byte[] cq;
                 if (!SchemaUtil.isPKColumn(c)) {
                     family = c.getFamilyName().getBytes();
-                    cq = EncodedColumnsUtil.getColumnQualifier(c, table);
+                    cq = c.getColumnQualifierBytes();
                 } else {
                     // TODO: samarth verify if this is the right thing to do here.
                     cq = c.getName().getBytes();

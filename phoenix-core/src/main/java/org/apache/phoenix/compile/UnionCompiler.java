@@ -86,11 +86,12 @@ public class UnionCompiler {
         for (int i = 0; i < plan.getProjector().getColumnCount(); i++) {
             ColumnProjector colProj = plan.getProjector().getColumnProjector(i);
             String name = selectNodes == null ? colProj.getName() : selectNodes.get(i).getAlias();
+            PName colName = PNameFactory.newName(name);
             PColumnImpl projectedColumn = new PColumnImpl(PNameFactory.newName(name),
                 UNION_FAMILY_NAME, targetTypes.get(i).getType(), targetTypes.get(i).getMaxLength(),
                 targetTypes.get(i).getScale(), colProj.getExpression().isNullable(), i,
                 targetTypes.get(i).getSortOrder(), 500, null, false,
-                colProj.getExpression().toString(), false, false, null);
+                colProj.getExpression().toString(), false, false, colName.getBytes());
             projectedColumns.add(projectedColumn);
         }
         Long scn = statement.getConnection().getSCN();

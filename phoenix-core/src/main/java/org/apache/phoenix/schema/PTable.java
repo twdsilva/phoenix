@@ -190,194 +190,167 @@ public interface PTable extends PMetaDataEntity {
         }
     }
     
-    public static class QualifierEncodingScheme<E> implements QualifierEncoderDecoder<E> {
+    public enum QualifierEncodingScheme implements QualifierEncoderDecoder {
+        NON_ENCODED_QUALIFIERS((byte)0, null) {
+            @Override
+            public byte[] getEncodedBytes(int value) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes, int offset, int length) {
+                throw new UnsupportedOperationException();
+            }
+            
+            @Override
+            public boolean isEncodeable() {
+                return true;
+            }
+            
+            @Override
+            public String toString() {
+                return name();
+            }
+        },
+        ONE_BYTE_QUALIFIERS((byte)1, 255) {
+            @Override
+            public byte[] getEncodedBytes(int value) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes, int offset, int length) {
+                throw new UnsupportedOperationException();
+            }
+            
+            @Override
+            public boolean isEncodeable() {
+                return true;
+            }
+            
+            @Override
+            public String toString() {
+                return name();
+            }
+        },
+        TWO_BYTE_QUALIFIERS((byte)2, 65535) {
+            @Override
+            public byte[] getEncodedBytes(int value) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes, int offset, int length) {
+                throw new UnsupportedOperationException();
+            }
+            
+            @Override
+            public boolean isEncodeable() {
+                return true;
+            }
+            
+            @Override
+            public String toString() {
+                return name();
+            }
+        },
+        THREE_BYTE_QUALIFIERS((byte)3, 16777215) {
+            @Override
+            public byte[] getEncodedBytes(int value) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes, int offset, int length) {
+                throw new UnsupportedOperationException();
+            }
+            
+            @Override
+            public boolean isEncodeable() {
+                return true;
+            }
+            
+            @Override
+            public String toString() {
+                return name();
+            }
+        },
+        FOUR_BYTE_QUALIFIERS((byte)4, Integer.MAX_VALUE) {
+            @Override
+            public byte[] getEncodedBytes(int value) {
+                return Bytes.toBytes(value);
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes) {
+                return Bytes.toInt(bytes);
+            }
+
+            @Override
+            public int getDecodedValue(byte[] bytes, int offset, int length) {
+                return Bytes.toInt(bytes, offset, length);
+            }
+            
+            @Override
+            public boolean isEncodeable() {
+                return true;
+            }
+            
+            @Override
+            public String toString() {
+                return name();
+            }
+        };
         
-        public static final QualifierEncodingScheme NON_ENCODED_QUALIFIERS = new QualifierEncodingScheme<String>((byte)0, "NON_ENCODED_QUALIFIERS", null) {
-            @Override
-            public byte[] getEncodedBytes(String value) {
-                return Bytes.toBytes(value);
-            }
-
-            @Override
-            public String getDecodedValue(byte[] bytes) {
-                return Bytes.toString(bytes);
-            }
-
-            @Override
-            public String getDecodedValue(byte[] bytes, int offset, int length) {
-                return Bytes.toString(bytes, offset, length);
-            }
-            
-            @Override
-            public boolean isEncodeable(String value) {
-                return true;
-            }
-            
-            @Override
-            public String toString() {
-                return "NON_ENCODED_QUALIFIERS";
-            }
-        };
-        public static final QualifierEncodingScheme ONE_BYTE_QUALIFIERS = new QualifierEncodingScheme<Long>((byte)1, "ONE_BYTE_QUALIFIERS", 255l) {
-            @Override
-            public byte[] getEncodedBytes(Long value) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
-            
-            @Override
-            public boolean isEncodeable(Long value) {
-                return true;
-            }
-            
-            @Override
-            public String toString() {
-                return "ONE_BYTE_QUALIFIERS";
-            }
-        };
-        public static final QualifierEncodingScheme TWO_BYTE_QUALIFIERS = new QualifierEncodingScheme<Long>((byte)2, "TWO_BYTE_QUALIFIERS", 65535l) {
-            @Override
-            public byte[] getEncodedBytes(Long value) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
-            
-            @Override
-            public boolean isEncodeable(Long value) {
-                return true;
-            }
-            
-            @Override
-            public String toString() {
-                return "TWO_BYTE_QUALIFIERS";
-            }
-        };
-        public static final QualifierEncodingScheme THREE_BYTE_QUALIFIERS = new QualifierEncodingScheme<Long>((byte)3, "THREE_BYTE_QUALIFIERS", 16777215l) {
-            @Override
-            public byte[] getEncodedBytes(Long value) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
-            
-            @Override
-            public boolean isEncodeable(Long value) {
-                return true;
-            }
-            
-            @Override
-            public String toString() {
-                return "THREE_BYTE_QUALIFIERS";
-            }
-        };
-        public static final QualifierEncodingScheme FOUR_BYTE_QUALIFIERS = new QualifierEncodingScheme<Long>((byte)4, "FOUR_BYTE_QUALIFIERS", 4294967295l) {
-            @Override
-            public byte[] getEncodedBytes(Long value) {
-                return Bytes.toBytes(value);
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes) {
-                return Bytes.toLong(bytes);
-            }
-
-            @Override
-            public Long getDecodedValue(byte[] bytes, int offset, int length) {
-                return Bytes.toLong(bytes, offset, length);
-            }
-            
-            @Override
-            public boolean isEncodeable(Long value) {
-                return true;
-            }
-            
-            @Override
-            public String toString() {
-                return "FOUR_BYTE_QUALIFIERS";
-            }
-        };
-        public static final QualifierEncodingScheme[] schemes = {NON_ENCODED_QUALIFIERS, ONE_BYTE_QUALIFIERS, TWO_BYTE_QUALIFIERS, THREE_BYTE_QUALIFIERS, FOUR_BYTE_QUALIFIERS}; 
-        private final byte[] metadataBytes;
         private final byte metadataValue;
-        private final Long maxQualifier;
-
-        private QualifierEncodingScheme(byte serializedMetadataValue, String name, Long maxQualifier) {
-            this.metadataValue = serializedMetadataValue;
-            this.metadataBytes = Bytes.toBytes(name);
-            this.maxQualifier = maxQualifier;
-        }
-
-        public byte[] getMetadataBytes() {
-            return metadataBytes;
-        }
-
+        private final Integer maxQualifier;
+        
         public byte getSerializedMetadataValue() {
             return this.metadataValue;
         }
 
         public static QualifierEncodingScheme fromSerializedValue(byte serializedValue) {
-            if (serializedValue < 0 || serializedValue >= schemes.length) {
+            if (serializedValue < 0 || serializedValue >= QualifierEncodingScheme.values().length) {
                 return null;
             }
-            return schemes[serializedValue];
+            return QualifierEncodingScheme.values()[serializedValue];
         }
         
-        public Long getMaxQualifier() {
+        public Integer getMaxQualifier() {
             return maxQualifier;
         }
 
-        @Override
-        public byte[] getEncodedBytes(E value) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public E getDecodedValue(byte[] bytes) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public E getDecodedValue(byte[] bytes, int offset, int length) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean isEncodeable(E value) {
-            throw new UnsupportedOperationException();
+        private QualifierEncodingScheme(byte serializedMetadataValue, Integer maxQualifier) {
+            this.metadataValue = serializedMetadataValue;
+            this.maxQualifier = maxQualifier;
         }
     }
     
-    interface QualifierEncoderDecoder<E> {
-        byte[] getEncodedBytes(E value);
-        E getDecodedValue(byte[] bytes);
-        E getDecodedValue(byte[] bytes, int offset, int length);
-        boolean isEncodeable(E value);
+    interface QualifierEncoderDecoder {
+        byte[] getEncodedBytes(int value);
+        int getDecodedValue(byte[] bytes);
+        int getDecodedValue(byte[] bytes, int offset, int length);
+        boolean isEncodeable();
     }
 
     long getTimeStamp();

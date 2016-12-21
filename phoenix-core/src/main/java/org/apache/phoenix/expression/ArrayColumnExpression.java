@@ -17,6 +17,9 @@
  */
 package org.apache.phoenix.expression;
 
+import static org.apache.phoenix.query.QueryConstants.SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES;
+import static org.apache.phoenix.schema.PTable.QualifierEncodingScheme.NON_ENCODED_QUALIFIERS;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -25,9 +28,9 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.phoenix.compile.CreateTableCompiler.ViewWhereExpressionVisitor;
 import org.apache.phoenix.expression.visitor.ExpressionVisitor;
-import org.apache.phoenix.query.QueryConstants;
 import org.apache.phoenix.schema.PColumn;
 import org.apache.phoenix.schema.PDatum;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.SortOrder;
 import org.apache.phoenix.schema.tuple.Tuple;
 import org.apache.phoenix.schema.types.PArrayDataType;
@@ -35,6 +38,8 @@ import org.apache.phoenix.schema.types.PDataType;
 import org.apache.phoenix.schema.types.PVarbinary;
 import org.apache.phoenix.util.EncodedColumnsUtil;
 import org.apache.phoenix.util.SchemaUtil;
+
+import com.google.common.base.Preconditions;
 
 /**
  * 
@@ -47,20 +52,27 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
     private int positionInArray;
     private String arrayColDisplayName;
     private KeyValueColumnExpression keyValueColumnExpression;
+    private QualifierEncodingScheme encodingScheme;
     
     public ArrayColumnExpression() {
     }
     
-    public ArrayColumnExpression(PDatum column, byte[] cf, int encodedCQ) {
-        super(column, cf, QueryConstants.SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES);
-        this.positionInArray = encodedCQ;
+    public ArrayColumnExpression(PDatum column, byte[] cf, byte[] cq, QualifierEncodingScheme encodingScheme) {
+        super(column, cf, SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES);
+        Preconditions.checkNotNull(encodingScheme);
+        Preconditions.checkArgument(encodingScheme != NON_ENCODED_QUALIFIERS);
+        this.positionInArray = encodingScheme.getDecodedValue(cq);
+        this.encodingScheme = encodingScheme;
         setKeyValueExpression();
     }
     
-    public ArrayColumnExpression(PColumn column, String displayName, boolean encodedColumnName) {
-        super(column, column.getFamilyName().getBytes(), QueryConstants.SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES);
+    public ArrayColumnExpression(PColumn column, String displayName, QualifierEncodingScheme encodingScheme) {
+        super(column, column.getFamilyName().getBytes(), SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES);
+        Preconditions.checkNotNull(encodingScheme);
+        Preconditions.checkArgument(encodingScheme != NON_ENCODED_QUALIFIERS);
         this.arrayColDisplayName = displayName;
-        this.positionInArray = column.getEncodedColumnQualifier();
+        this.positionInArray = encodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+        this.encodingScheme = encodingScheme;
         setKeyValueExpression();
     }
 
@@ -81,6 +93,7 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
     public void readFields(DataInput input) throws IOException {
         super.readFields(input);
         this.positionInArray = WritableUtils.readVInt(input);
+        this.encodingScheme = WritableUtils.readEnum(input, QualifierEncodingScheme.class);
         setKeyValueExpression();
     }
 
@@ -88,6 +101,7 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
     public void write(DataOutput output) throws IOException {
         super.write(output);
         WritableUtils.writeVInt(output, positionInArray);
+        WritableUtils.writeEnum(output, encodingScheme);
     }
     
     public KeyValueColumnExpression getKeyValueExpression() {
@@ -137,7 +151,7 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
     }
     
     public byte[] getPositionInArray() {
-        return EncodedColumnsUtil.getEncodedColumnQualifier(positionInArray);
+        return encodingScheme.getEncodedBytes(positionInArray);
     }
     
     @Override

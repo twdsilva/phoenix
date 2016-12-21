@@ -17,6 +17,9 @@
  */
 package org.apache.phoenix.coprocessor;
 
+import static org.apache.phoenix.util.EncodedColumnsUtil.getEncodingScheme;
+import static org.apache.phoenix.util.EncodedColumnsUtil.getMinMaxQualifiersFromScan;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -57,6 +60,7 @@ import org.apache.phoenix.memory.MemoryManager.MemoryChunk;
 import org.apache.phoenix.query.QueryConstants;
 import org.apache.phoenix.schema.KeyValueSchema;
 import org.apache.phoenix.schema.KeyValueSchema.KeyValueSchemaBuilder;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.ValueBitSet;
 import org.apache.phoenix.schema.tuple.ResultTuple;
 import org.apache.phoenix.schema.tuple.Tuple;
@@ -126,7 +130,8 @@ public class ScanRegionObserver extends BaseScannerRegionObserver {
                 orderByExpression.readFields(input);
                 orderByExpressions.add(orderByExpression);
             }
-            ResultIterator inner = new RegionScannerResultIterator(s, EncodedColumnsUtil.getMinMaxQualifiersFromScan(scan));
+            QualifierEncodingScheme encodingScheme = getEncodingScheme(scan);
+            ResultIterator inner = new RegionScannerResultIterator(s, EncodedColumnsUtil.getMinMaxQualifiersFromScan(scan), encodingScheme);
             return new OrderedResultIterator(inner, orderByExpressions, thresholdBytes, limit >= 0 ? limit : null, null,
                     estimatedRowSize);
         } catch (IOException e) {
@@ -221,7 +226,7 @@ public class ScanRegionObserver extends BaseScannerRegionObserver {
         final HashJoinInfo j = HashJoinInfo.deserializeHashJoinFromScan(scan);
         //TODO: samarth make this a client side check by looking at order by and group by expressions. Then use that to set min max qualifiers. We can then make useQualifierListAsIndex
         // a member variable of BaseScannerRegionObserver.
-        boolean useQualifierAsIndex = EncodedColumnsUtil.useQualifierAsIndex(EncodedColumnsUtil.getMinMaxQualifiersFromScan(scan)) && scan.getAttribute(BaseScannerRegionObserver.TOPN) != null;
+        boolean useQualifierAsIndex = EncodedColumnsUtil.useQualifierAsIndex(getMinMaxQualifiersFromScan(scan)) && scan.getAttribute(BaseScannerRegionObserver.TOPN) != null;
         innerScanner =
                 getWrappedScanner(c, innerScanner, arrayKVRefs, arrayFuncRefs, offset, scan,
                     dataColumns, tupleProjector, dataRegion, indexMaintainer, tx,
@@ -233,7 +238,7 @@ public class ScanRegionObserver extends BaseScannerRegionObserver {
         }
         if (scanOffset != null) {
             innerScanner = getOffsetScanner(c, innerScanner,
-                    new OffsetResultIterator(new RegionScannerResultIterator(innerScanner, EncodedColumnsUtil.getMinMaxQualifiersFromScan(scan)), scanOffset),
+                    new OffsetResultIterator(new RegionScannerResultIterator(innerScanner, getMinMaxQualifiersFromScan(scan), getEncodingScheme(scan)), scanOffset),
                     scan.getAttribute(QueryConstants.LAST_SCAN) != null);
         }
         final OrderedResultIterator iterator = deserializeFromScan(scan, innerScanner);

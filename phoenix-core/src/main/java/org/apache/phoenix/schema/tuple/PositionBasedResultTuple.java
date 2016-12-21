@@ -49,8 +49,7 @@ public class PositionBasedResultTuple extends BaseTuple {
 
     @Override
     public KeyValue getValue(byte[] family, byte[] qualifier) {
-        int columnQualifier = EncodedColumnsUtil.getEncodedColumnQualifier(qualifier);
-        return org.apache.hadoop.hbase.KeyValueUtil.ensureKeyValue(cells.getCellForColumnQualifier(columnQualifier));
+        return org.apache.hadoop.hbase.KeyValueUtil.ensureKeyValue(cells.getCellForColumnQualifier(qualifier));
     }
 
     @Override

@@ -101,7 +101,7 @@ public class DelegateColumn extends DelegateDatum implements PColumn {
 	    return getDelegate().equals(o);
 	}
     @Override
-    public Integer getEncodedColumnQualifier() {
-        return getDelegate().getEncodedColumnQualifier();
+    public byte[] getColumnQualifierBytes() {
+        return getDelegate().getColumnQualifierBytes();
     }
 }

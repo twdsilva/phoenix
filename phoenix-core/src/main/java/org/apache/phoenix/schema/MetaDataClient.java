@@ -34,6 +34,7 @@ import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_COUNT;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_DEF;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_FAMILY;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_NAME;
+import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_QUALIFIER;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_QUALIFIER_COUNTER;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.COLUMN_SIZE;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DATA_TABLE_NAME;
@@ -42,7 +43,6 @@ import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DECIMAL_DIGITS;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DEFAULT_COLUMN_FAMILY_NAME;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DEFAULT_VALUE;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.DISABLE_WAL;
-import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.ENCODED_COLUMN_QUALIFIER;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.ENCODING_SCHEME;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.FUNCTION_NAME;
 import static org.apache.phoenix.jdbc.PhoenixDatabaseMetaData.GUIDE_POSTS_WIDTH;
@@ -363,7 +363,7 @@ public class MetaDataClient {
                     PK_NAME + "," +  // write this both in the column and table rows for access by metadata APIs
                     KEY_SEQ + "," +
                     COLUMN_DEF + "," +
-                    ENCODED_COLUMN_QUALIFIER + ", " +
+                    COLUMN_QUALIFIER + ", " +
                     IS_ROW_TIMESTAMP +
                     ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     private static final String INSERT_COLUMN_ALTER_TABLE =
@@ -386,7 +386,7 @@ public class MetaDataClient {
                     PK_NAME + "," +  // write this both in the column and table rows for access by metadata APIs
                     KEY_SEQ + "," +
                     COLUMN_DEF + "," +
-                    ENCODED_COLUMN_QUALIFIER +
+                    COLUMN_QUALIFIER +
                     ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     private static final String UPDATE_COLUMN_POSITION =
             "UPSERT INTO " + SYSTEM_CATALOG_SCHEMA + ".\"" + SYSTEM_CATALOG_TABLE + "\" ( " +
@@ -834,10 +834,10 @@ public class MetaDataClient {
         } else {
             colUpsert.setString(18, column.getExpressionStr());
         }
-        if (column.getEncodedColumnQualifier() == null) {
-            colUpsert.setNull(19, Types.INTEGER);
+        if (column.getColumnQualifierBytes() == null) {
+            colUpsert.setNull(19, Types.VARBINARY);
         } else {
-            colUpsert.setInt(19, column.getEncodedColumnQualifier());
+            colUpsert.setBytes(19, column.getColumnQualifierBytes());
         }
         if (colUpsert.getParameterMetaData().getParameterCount() > 19) {
             colUpsert.setBoolean(20, column.isRowTimestamp());
@@ -859,7 +859,7 @@ public class MetaDataClient {
         argUpsert.execute();
     }
 
-    private PColumn newColumn(int position, ColumnDef def, PrimaryKeyConstraint pkConstraint, String defaultColumnFamily, boolean addingToPK, Integer encodedColumnQualifier) throws SQLException {
+    private PColumn newColumn(int position, ColumnDef def, PrimaryKeyConstraint pkConstraint, String defaultColumnFamily, boolean addingToPK, byte[] columnQualifierBytes) throws SQLException {
         try {
             ColumnName columnDefName = def.getColumnDefName();
             SortOrder sortOrder = def.getSortOrder();
@@ -908,7 +908,7 @@ public class MetaDataClient {
                 isNull = false;
             }
             PColumn column = new PColumnImpl(PNameFactory.newName(columnName), familyName, def.getDataType(),
-                    def.getMaxLength(), def.getScale(), isNull, position, sortOrder, def.getArraySize(), null, false, def.getExpression(), isRowTimestamp, false, isPK ? null : encodedColumnQualifier);
+                    def.getMaxLength(), def.getScale(), isNull, position, sortOrder, def.getArraySize(), null, false, def.getExpression(), isRowTimestamp, false, columnQualifierBytes);
             return column;
         } catch (IllegalArgumentException e) { // Based on precondition check in constructor
             throw new SQLException(e);
@@ -2068,10 +2068,10 @@ public class MetaDataClient {
                  * partitioned by the virtue of indexId present in the row key. As such, different shared indexes can use
                  * potentially overlapping column qualifiers.
                  * 
-                 * If the hbase table already exists, then possibly encoded or non-encoded column qualifiers already exist. 
-                 * In this case we pursue ahead with non-encoded column qualifier scheme. If the phoenix table already exists 
+                 * If the hbase table already exists, then possibly encoded or non-encoded column qualifiers were used. 
+                 * In this case we pursue ahead with non-encoded column qualifier scheme. If the phoenix metadata for this table already exists 
                  * then we rely on the PTable, with appropriate storage scheme, returned in the MetadataMutationResult to be updated 
-                 * in the client cache. If the phoenix table already doesn't exist then the non-encoded column qualifier scheme works
+                 * in the client cache. If the phoenix table metadata already doesn't exist then the non-encoded column qualifier scheme works
                  * because we cannot control the column qualifiers that were used when populating the hbase table.
                  * TODO: samarth add a test case for this
                  */
@@ -2136,8 +2136,9 @@ public class MetaDataClient {
                         cqCounterFamily = defaultFamilyName != null ? defaultFamilyName : DEFAULT_COLUMN_FAMILY;
                     }
                 }
-                Integer encodedCQ =  isPkColumn ? null : cqCounter.getNextQualifier(cqCounterFamily);   
-                PColumn column = newColumn(position++, colDef, pkConstraint, defaultFamilyName, false, encodedCQ);
+                Integer encodedCQ =  isPkColumn ? null : cqCounter.getNextQualifier(cqCounterFamily);
+                byte[] columnQualifierBytes = EncodedColumnsUtil.getColumnQualifierBytes(columnDefName.getColumnName(), encodedCQ, encodingScheme);
+                PColumn column = newColumn(position++, colDef, pkConstraint, defaultFamilyName, false, columnQualifierBytes);
                 if (cqCounter.increment(cqCounterFamily)) {
                     changedCqCounters.put(cqCounterFamily, cqCounter.getNextQualifier(cqCounterFamily));
                 }
@@ -2710,7 +2711,7 @@ public class MetaDataClient {
                                 PTable viewIndexTable = new PTableImpl(null,
                                         SchemaUtil.getSchemaNameFromFullName(viewIndexPhysicalName),
                                         SchemaUtil.getTableNameFromFullName(viewIndexPhysicalName), ts,
-                                        table.getColumnFamilies(),table.isNamespaceMapped());
+                                        table.getColumnFamilies(),table.isNamespaceMapped(), table.getStorageScheme(), table.getEncodingScheme());
                                 tableRefs.add(new TableRef(null, viewIndexTable, ts, false));
                             }
                         }
@@ -3181,7 +3182,8 @@ public class MetaDataClient {
                                         cqCounterToUse.getNextQualifier(familyName));
                                 }
                             }
-                            PColumn column = newColumn(position++, colDef, PrimaryKeyConstraint.EMPTY, table.getDefaultFamilyName() == null ? null : table.getDefaultFamilyName().getString(), true, encodedCQ);
+                            byte[] columnQualifierBytes = EncodedColumnsUtil.getColumnQualifierBytes(colDef.getColumnDefName().getColumnName(), encodedCQ, table);
+                            PColumn column = newColumn(position++, colDef, PrimaryKeyConstraint.EMPTY, table.getDefaultFamilyName() == null ? null : table.getDefaultFamilyName().getString(), true, columnQualifierBytes);
                             columns.add(column);
                             String pkName = null;
                             Short keySeq = null;
@@ -3356,7 +3358,7 @@ public class MetaDataClient {
                             PTable viewIndexTable = new PTableImpl(null,
                                     SchemaUtil.getSchemaNameFromFullName(viewIndexPhysicalName),
                                     SchemaUtil.getTableNameFromFullName(viewIndexPhysicalName), ts,
-                                    table.getColumnFamilies(), table.isNamespaceMapped());
+                                    table.getColumnFamilies(), table.isNamespaceMapped(), table.getStorageScheme(), table.getEncodingScheme());
                             List<TableRef> tableRefs = Collections.singletonList(new TableRef(null, viewIndexTable, ts, false));
                             MutationPlan plan = new PostDDLCompiler(connection).compile(tableRefs, null, null,
                                     Collections.<PColumn> emptyList(), ts);

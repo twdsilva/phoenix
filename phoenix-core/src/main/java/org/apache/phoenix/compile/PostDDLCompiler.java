@@ -238,7 +238,7 @@ public class PostDDLCompiler {
                                     // data empty column family to stay the same, while the index empty column family
                                     // changes.
                                     PColumn column = deleteList.get(0);
-                                    byte[] cq = EncodedColumnsUtil.getColumnQualifier(column, tableRef.getTable());
+                                    byte[] cq = column.getColumnQualifierBytes();
                                     if (emptyCF == null) {
                                         scan.addColumn(column.getFamilyName().getBytes(), cq);
                                     }
