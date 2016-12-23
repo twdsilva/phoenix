@@ -64,6 +64,7 @@ import org.apache.phoenix.parse.ParseNode;
 import org.apache.phoenix.parse.SQLParser;
 import org.apache.phoenix.protobuf.ProtobufUtil;
 import org.apache.phoenix.query.QueryConstants;
+import org.apache.phoenix.schema.PTable.EncodedCQCounter;
 import org.apache.phoenix.schema.RowKeySchema.RowKeySchemaBuilder;
 import org.apache.phoenix.schema.tuple.Tuple;
 import org.apache.phoenix.schema.types.PArrayDataType;
@@ -1335,12 +1336,17 @@ public class PTableImpl implements PTable {
         if (table.hasEncodingScheme()) {
             qualifierEncodingScheme = QualifierEncodingScheme.fromSerializedValue(table.getEncodingScheme().toByteArray()[0]);
         }
-        EncodedCQCounter encodedColumnQualifierCounter = EncodedColumnsUtil.usesEncodedColumnNames(qualifierEncodingScheme) ? new EncodedCQCounter() : EncodedCQCounter.NULL_COUNTER;
-        if (table.getEncodedCQCountersList() != null) {
-            encodedColumnQualifierCounter = new EncodedCQCounter();
-            for (org.apache.phoenix.coprocessor.generated.PTableProtos.EncodedCQCounter cqCounterFromProto : table.getEncodedCQCountersList()) {
-                encodedColumnQualifierCounter.setValue(cqCounterFromProto.getColFamily(), cqCounterFromProto.getCounter());
-            }
+        EncodedCQCounter encodedColumnQualifierCounter = null;
+        if ((!EncodedColumnsUtil.usesEncodedColumnNames(qualifierEncodingScheme) || tableType == PTableType.VIEW)) {
+        	encodedColumnQualifierCounter = PTable.EncodedCQCounter.NULL_COUNTER;
+        }
+        else {
+        	encodedColumnQualifierCounter = new EncodedCQCounter();
+        	if (table.getEncodedCQCountersList() != null) {
+        		for (org.apache.phoenix.coprocessor.generated.PTableProtos.EncodedCQCounter cqCounterFromProto : table.getEncodedCQCountersList()) {
+        			encodedColumnQualifierCounter.setValue(cqCounterFromProto.getColFamily(), cqCounterFromProto.getCounter());
+        		}
+        	}
         }
 
         try {
