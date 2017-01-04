@@ -131,7 +131,7 @@ public class EncodedColumnsUtil {
             if (!SchemaUtil.isPKColumn(column)) {
                 String colFamily = column.getFamilyName().getString();
                 Pair<Integer, Integer> minMaxQualifiers = toReturn.get(colFamily);
-                Integer encodedColumnQualifier = encodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+                Integer encodedColumnQualifier = encodingScheme.decode(column.getColumnQualifierBytes());
                 if (minMaxQualifiers == null) {
                     minMaxQualifiers = new Pair<>(encodedColumnQualifier, encodedColumnQualifier);
                     toReturn.put(colFamily, minMaxQualifiers);
@@ -156,7 +156,7 @@ public class EncodedColumnsUtil {
         if (encodingScheme == NON_ENCODED_QUALIFIERS) {
             return Bytes.toBytes(columnName);
         } else if (numberBasedQualifier != null) {
-            return encodingScheme.getEncodedBytes(numberBasedQualifier);
+            return encodingScheme.encode(numberBasedQualifier);
         }
         return null;
     }

@@ -274,7 +274,7 @@ public abstract class BaseResultIterators extends ExplainTable implements Result
         for (Pair<byte[], byte[]> whereCol : context.getWhereConditionColumns()) {
             byte[] cq = whereCol.getSecond();
             if (cq != null) {
-                int qualifier = table.getEncodingScheme().getDecodedValue(cq);
+                int qualifier = table.getEncodingScheme().decode(cq);
                 determineQualifierRange(qualifier, minMaxQualifiers);
             }
         }
@@ -285,7 +285,7 @@ public abstract class BaseResultIterators extends ExplainTable implements Result
             if (entry.getValue() != null) {
                 for (byte[] cq : entry.getValue()) {
                     if (cq != null) {
-                        int qualifier = table.getEncodingScheme().getDecodedValue(cq);
+                        int qualifier = table.getEncodingScheme().decode(cq);
                         determineQualifierRange(qualifier, minMaxQualifiers);
                     }
                 }

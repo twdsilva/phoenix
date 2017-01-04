@@ -133,7 +133,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
         if (e == null) {
             throw new NullPointerException();
         }
-        int columnQualifier = encodingScheme.getDecodedValue(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());
+        int columnQualifier = encodingScheme.decode(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());
                 
         checkQualifierRange(columnQualifier);
         int idx = getArrayIndex(columnQualifier);
@@ -233,7 +233,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
             ListIterator<Cell> listItr = this.listIterator();
             while (listItr.hasNext()) {
                 Cell cellInThis = listItr.next();
-                int qualifier = encodingScheme.getDecodedValue(cellInThis.getQualifierArray(),
+                int qualifier = encodingScheme.decode(cellInThis.getQualifierArray(),
                             cellInThis.getQualifierOffset(), cellInThis.getQualifierLength());
                 try {
                     Cell cellInParam = list.getCellForColumnQualifier(qualifier);
@@ -357,7 +357,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
     }
 
     public Cell getCellForColumnQualifier(byte[] qualifierBytes) {
-        int columnQualifier = encodingScheme.getDecodedValue(qualifierBytes);
+        int columnQualifier = encodingScheme.decode(qualifierBytes);
         return getCellForColumnQualifier(columnQualifier);
     }
     
@@ -517,7 +517,7 @@ public class EncodedColumnQualiferCellsList implements List<Cell> {
             if (lastRet == -1) {
                 throw new IllegalStateException();
             }
-            int columnQualifier = encodingScheme.getDecodedValue(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());                    
+            int columnQualifier = encodingScheme.decode(e.getQualifierArray(), e.getQualifierOffset(), e.getQualifierLength());                    
             int idx = getArrayIndex(columnQualifier);
             if (idx != lastRet) {
                 throw new IllegalArgumentException("Cell " + e + " with column qualifier "

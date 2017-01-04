@@ -48,6 +48,7 @@ import org.apache.phoenix.jdbc.PhoenixStatement;
 import org.apache.phoenix.query.BaseConnectionlessQueryTest;
 import org.apache.phoenix.query.QueryConstants;
 import org.apache.phoenix.schema.PTable;
+import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.TableNotFoundException;
 import org.apache.phoenix.schema.types.PDataType;
 import org.junit.Test;
@@ -346,11 +347,5 @@ public class PhoenixRuntimeTest extends BaseConnectionlessQueryTest {
         // Even with a day of skew, we won't consider the ts a nanos timestamp
         assertEquals(skewedTs, PhoenixRuntime.getWallClockTimeFromCellTimeStamp(skewedTs));
     }
-    
-    public static void main(String args[]) throws Exception {
-        byte[] bytes = Bytes.toBytes(4294967295l);
-        long value = ByteBuffer.wrap(bytes)
-                .order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
-        System.out.print(value);
-    }
+
 }

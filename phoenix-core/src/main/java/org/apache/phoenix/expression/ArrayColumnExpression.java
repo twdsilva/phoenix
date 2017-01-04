@@ -61,7 +61,7 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
         super(column, cf, SINGLE_KEYVALUE_COLUMN_QUALIFIER_BYTES);
         Preconditions.checkNotNull(encodingScheme);
         Preconditions.checkArgument(encodingScheme != NON_ENCODED_QUALIFIERS);
-        this.positionInArray = encodingScheme.getDecodedValue(cq);
+        this.positionInArray = encodingScheme.decode(cq);
         this.encodingScheme = encodingScheme;
         setKeyValueExpression();
     }
@@ -71,7 +71,7 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
         Preconditions.checkNotNull(encodingScheme);
         Preconditions.checkArgument(encodingScheme != NON_ENCODED_QUALIFIERS);
         this.arrayColDisplayName = displayName;
-        this.positionInArray = encodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+        this.positionInArray = encodingScheme.decode(column.getColumnQualifierBytes());
         this.encodingScheme = encodingScheme;
         setKeyValueExpression();
     }
@@ -151,7 +151,7 @@ public class ArrayColumnExpression extends KeyValueColumnExpression {
     }
     
     public byte[] getPositionInArray() {
-        return encodingScheme.getEncodedBytes(positionInArray);
+        return encodingScheme.encode(positionInArray);
     }
     
     @Override

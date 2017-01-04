@@ -33,6 +33,8 @@ import org.apache.phoenix.hbase.index.util.KeyValueBuilder;
 import org.apache.phoenix.index.IndexMaintainer;
 import org.apache.phoenix.jdbc.PhoenixConnection;
 
+import com.google.common.annotations.VisibleForTesting;
+
 
 /**
  * Definition of a Phoenix table
@@ -193,23 +195,18 @@ public interface PTable extends PMetaDataEntity {
     public enum QualifierEncodingScheme implements QualifierEncoderDecoder {
         NON_ENCODED_QUALIFIERS((byte)0, null) {
             @Override
-            public byte[] getEncodedBytes(int value) {
+            public byte[] encode(int value) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public int getDecodedValue(byte[] bytes) {
+            public int decode(byte[] bytes) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public int getDecodedValue(byte[] bytes, int offset, int length) {
+            public int decode(byte[] bytes, int offset, int length) {
                 throw new UnsupportedOperationException();
-            }
-            
-            @Override
-            public boolean isEncodeable() {
-                return true;
             }
             
             @Override
@@ -218,24 +215,30 @@ public interface PTable extends PMetaDataEntity {
             }
         },
         ONE_BYTE_QUALIFIERS((byte)1, 255) {
-            @Override
-            public byte[] getEncodedBytes(int value) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getDecodedValue(byte[] bytes) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getDecodedValue(byte[] bytes, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
+            private final int c = Math.abs(Byte.MIN_VALUE);
             
             @Override
-            public boolean isEncodeable() {
-                return true;
+            public byte[] encode(int value) {
+                if (value < 0 || value > maxQualifier) {
+                    throw new QualifierOutOfRangeException(0, maxQualifier);
+                }
+                return new byte[]{(byte)(value - c)};
+            }
+
+            @Override
+            public int decode(byte[] bytes) {
+                if (bytes.length != 1) {
+                    throw new InvalidQualifierBytesException(1, bytes.length);
+                }
+                return bytes[0] + c;
+            }
+
+            @Override
+            public int decode(byte[] bytes, int offset, int length) {
+                if (length != 1) {
+                    throw new InvalidQualifierBytesException(1, length);
+                }
+                return bytes[offset] + c;
             }
             
             @Override
@@ -244,24 +247,30 @@ public interface PTable extends PMetaDataEntity {
             }
         },
         TWO_BYTE_QUALIFIERS((byte)2, 65535) {
-            @Override
-            public byte[] getEncodedBytes(int value) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getDecodedValue(byte[] bytes) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public int getDecodedValue(byte[] bytes, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
+            private final int c = Math.abs(Short.MIN_VALUE);
             
             @Override
-            public boolean isEncodeable() {
-                return true;
+            public byte[] encode(int value) {
+                if (value < 0 || value > maxQualifier) {
+                    throw new QualifierOutOfRangeException(0, maxQualifier);
+                }
+                return Bytes.toBytes((short)(value - c));
+            }
+
+            @Override
+            public int decode(byte[] bytes) {
+                if (bytes.length != 2) {
+                    throw new InvalidQualifierBytesException(2, bytes.length);
+                }
+                return Bytes.toShort(bytes) + c;
+            }
+
+            @Override
+            public int decode(byte[] bytes, int offset, int length) {
+                if (length != 2) {
+                    throw new InvalidQualifierBytesException(2, length);
+                }
+                return Bytes.toShort(bytes, offset, length) + c;
             }
             
             @Override
@@ -271,23 +280,36 @@ public interface PTable extends PMetaDataEntity {
         },
         THREE_BYTE_QUALIFIERS((byte)3, 16777215) {
             @Override
-            public byte[] getEncodedBytes(int value) {
-                throw new UnsupportedOperationException();
+            public byte[] encode(int value) {
+                if (value < 0 || value > maxQualifier) {
+                    throw new QualifierOutOfRangeException(0, maxQualifier);
+                }
+                byte[] arr = Bytes.toBytes(value);
+                return new byte[]{arr[1], arr[2], arr[3]};
             }
 
             @Override
-            public int getDecodedValue(byte[] bytes) {
-                throw new UnsupportedOperationException();
+            public int decode(byte[] bytes) {
+                if (bytes.length != 3) {
+                    throw new InvalidQualifierBytesException(2, bytes.length);
+                }
+                byte[] toReturn = new byte[4];
+                toReturn[1] = bytes[0];
+                toReturn[2] = bytes[1];
+                toReturn[3] = bytes[2];
+                return Bytes.toInt(toReturn);
             }
 
             @Override
-            public int getDecodedValue(byte[] bytes, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
-            
-            @Override
-            public boolean isEncodeable() {
-                return true;
+            public int decode(byte[] bytes, int offset, int length) {
+                if (length != 3) {
+                    throw new InvalidQualifierBytesException(3, length);
+                }
+                byte[] toReturn = new byte[4];
+                toReturn[1] = bytes[offset];
+                toReturn[2] = bytes[offset + 1];
+                toReturn[3] = bytes[offset + 2];
+                return Bytes.toInt(toReturn);
             }
             
             @Override
@@ -297,23 +319,27 @@ public interface PTable extends PMetaDataEntity {
         },
         FOUR_BYTE_QUALIFIERS((byte)4, Integer.MAX_VALUE) {
             @Override
-            public byte[] getEncodedBytes(int value) {
+            public byte[] encode(int value) {
+                if (value < 0) {
+                    throw new QualifierOutOfRangeException(0, maxQualifier);
+                }
                 return Bytes.toBytes(value);
             }
 
             @Override
-            public int getDecodedValue(byte[] bytes) {
+            public int decode(byte[] bytes) {
+                if (bytes.length != 4) {
+                    throw new InvalidQualifierBytesException(4, bytes.length);
+                }
                 return Bytes.toInt(bytes);
             }
 
             @Override
-            public int getDecodedValue(byte[] bytes, int offset, int length) {
+            public int decode(byte[] bytes, int offset, int length) {
+                if (length != 4) {
+                    throw new InvalidQualifierBytesException(4, length);
+                }
                 return Bytes.toInt(bytes, offset, length);
-            }
-            
-            @Override
-            public boolean isEncodeable() {
-                return true;
             }
             
             @Override
@@ -322,8 +348,8 @@ public interface PTable extends PMetaDataEntity {
             }
         };
         
-        private final byte metadataValue;
-        private final Integer maxQualifier;
+        final byte metadataValue;
+        final Integer maxQualifier;
         
         public byte getSerializedMetadataValue() {
             return this.metadataValue;
@@ -336,6 +362,7 @@ public interface PTable extends PMetaDataEntity {
             return QualifierEncodingScheme.values()[serializedValue];
         }
         
+        @Override
         public Integer getMaxQualifier() {
             return maxQualifier;
         }
@@ -344,13 +371,27 @@ public interface PTable extends PMetaDataEntity {
             this.metadataValue = serializedMetadataValue;
             this.maxQualifier = maxQualifier;
         }
+        
+        @VisibleForTesting
+        public static class QualifierOutOfRangeException extends RuntimeException {
+            public QualifierOutOfRangeException(int minQualifier, int maxQualifier) {
+                super("Qualifier out of range (" + minQualifier + ", " + maxQualifier + ")"); 
+            }
+        }
+        
+        @VisibleForTesting
+        public static class InvalidQualifierBytesException extends RuntimeException {
+            public InvalidQualifierBytesException(int expectedLength, int actualLength) {
+                super("Invalid number of qualifier bytes. Expected length: " + expectedLength + ". Actual: " + actualLength);
+            }
+        }
     }
     
     interface QualifierEncoderDecoder {
-        byte[] getEncodedBytes(int value);
-        int getDecodedValue(byte[] bytes);
-        int getDecodedValue(byte[] bytes, int offset, int length);
-        boolean isEncodeable();
+        byte[] encode(int value);
+        int decode(byte[] bytes);
+        int decode(byte[] bytes, int offset, int length);
+        Integer getMaxQualifier();
     }
 
     long getTimeStamp();

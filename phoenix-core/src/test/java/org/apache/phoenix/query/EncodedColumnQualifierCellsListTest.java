@@ -122,7 +122,7 @@ public class EncodedColumnQualifierCellsListTest {
         for (Cell c : cells) {
             assertTrue(list.contains(c));
         }
-        assertFalse(list.contains(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(13))));
+        assertFalse(list.contains(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(13))));
     }
     
     @Test
@@ -154,7 +154,7 @@ public class EncodedColumnQualifierCellsListTest {
         assertEquals(5, list.size());
         assertTrue(list.remove(cells[3]));
         assertEquals(4, list.size());
-        assertFalse(list.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(13))));
+        assertFalse(list.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(13))));
         assertEquals(4, list.size());
     }
     
@@ -165,10 +165,10 @@ public class EncodedColumnQualifierCellsListTest {
         EncodedColumnQualiferCellsList list2 = new EncodedColumnQualiferCellsList(11, 16, FOUR_BYTE_QUALIFIERS);
         populateList(list2);
         assertTrue(list1.containsAll(list2));
-        list2.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(11)));
+        list2.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(11)));
         assertTrue(list1.containsAll(list2));
         assertFalse(list2.containsAll(list1));
-        list2.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(13)));
+        list2.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(13)));
         assertFalse(list1.containsAll(list2));
         assertFalse(list2.containsAll(list1));
         List<Cell> arrayList = new ArrayList<>();
@@ -218,7 +218,7 @@ public class EncodedColumnQualifierCellsListTest {
         populateList(list2);
         // retainAll won't be modifying the list1 since they both have the same elements equality wise
         assertFalse(list1.retainAll(list2));
-        list2.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(12)));
+        list2.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(12)));
         assertTrue(list1.retainAll(list2));
         assertEquals(list1.size(), list2.size());
         for (Cell c : list1) {
@@ -408,7 +408,7 @@ public class EncodedColumnQualifierCellsListTest {
             i++;
             try {
                 itr.next();
-                list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
+                list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(0)));
                 if (i == 2) {
                     fail("ConcurrentModificationException should have been thrown as the list is being modified while being iterated through");
                 }
@@ -426,7 +426,7 @@ public class EncodedColumnQualifierCellsListTest {
         populateList(list);
         ListIterator<Cell> itr = list.listIterator();
         itr.next();
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(0)));
         try {
             itr.next();
             fail("ConcurrentModificationException should have been thrown as the list was modified without using iterator");
@@ -440,7 +440,7 @@ public class EncodedColumnQualifierCellsListTest {
         itr.next();
         itr.remove();
         itr.next();
-        list.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
+        list.remove(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(0)));
         try {
             itr.next();
             fail("ConcurrentModificationException should have been thrown as the list was modified without using iterator");
@@ -451,28 +451,28 @@ public class EncodedColumnQualifierCellsListTest {
     
     private void populateListAndArray(List<Cell> list, Cell[] cells) {
         // add elements in reserved range
-        list.add(cells[0] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
-        list.add(cells[1] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(5)));
-        list.add(cells[2] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(10)));
+        list.add(cells[0] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(0)));
+        list.add(cells[1] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(5)));
+        list.add(cells[2] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(10)));
 
         // add elements in qualifier range
-        list.add(cells[6] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(16)));
-        list.add(cells[4] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(12)));
-        list.add(cells[5] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(14)));
-        list.add(cells[3] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(11)));
+        list.add(cells[6] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(16)));
+        list.add(cells[4] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(12)));
+        list.add(cells[5] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(14)));
+        list.add(cells[3] = KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(11)));
     }
 
     private void populateList(List<Cell> list) {
         // add elements in reserved range
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(0)));
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(5)));
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(10)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(0)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(5)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(10)));
 
         // add elements in qualifier range
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(16)));
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(12)));
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(14)));
-        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.getEncodedBytes(11)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(16)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(12)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(14)));
+        list.add(KeyValue.createFirstOnRow(row, cf, FOUR_BYTE_QUALIFIERS.encode(11)));
     }
     
     private class DelegateCell implements Cell {

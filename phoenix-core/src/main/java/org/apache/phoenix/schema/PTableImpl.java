@@ -20,7 +20,6 @@ package org.apache.phoenix.schema;
 import static org.apache.phoenix.hbase.index.util.KeyValueBuilder.addQuietly;
 import static org.apache.phoenix.hbase.index.util.KeyValueBuilder.deleteQuietly;
 import static org.apache.phoenix.schema.SaltingUtil.SALTING_COLUMN;
-import static org.apache.phoenix.util.EncodedColumnsUtil.usesEncodedColumnNames;
 
 import java.io.IOException;
 import java.sql.DriverManager;
@@ -122,7 +121,7 @@ public class PTableImpl implements PTable {
     private Map<byte[], PColumnFamily> familyByBytes;
     private Map<String, PColumnFamily> familyByString;
     private ListMultimap<String, PColumn> columnsByName;
-    private ListMultimap<KVColumnFamilyQualifier, PColumn> kvColumnsByEncodedQualifiers;
+    private ListMultimap<KVColumnFamilyQualifier, PColumn> kvColumnsByQualifiers;
     private PName pkName;
     private Integer bucketNum;
     private RowKeySchema rowKeySchema;
@@ -482,7 +481,7 @@ public class PTableImpl implements PTable {
         PColumn[] allColumns;
         
         this.columnsByName = ArrayListMultimap.create(columns.size(), 1);
-        this.kvColumnsByEncodedQualifiers = ArrayListMultimap.<KVColumnFamilyQualifier, PColumn>create(columns.size(), 1);
+        this.kvColumnsByQualifiers = ArrayListMultimap.<KVColumnFamilyQualifier, PColumn>create(columns.size(), 1);
         int numPKColumns = 0;
         if (bucketNum != null) {
             // Add salt column to allColumns and pkColumns, but don't add to
@@ -495,7 +494,6 @@ public class PTableImpl implements PTable {
             allColumns = new PColumn[columns.size()];
             pkColumns = Lists.newArrayListWithExpectedSize(columns.size());
         }
-        boolean encodedColumnQualifiers = usesEncodedColumnNames(qualifierEncodingScheme);
         for (PColumn column : columns) {
             allColumns[column.getPosition()] = column;
             PName familyName = column.getFamilyName();
@@ -516,11 +514,11 @@ public class PTableImpl implements PTable {
             }
             byte[] cq = column.getColumnQualifierBytes();
             String cf = column.getFamilyName() != null ? column.getFamilyName().getString() : null;
-            if (cf != null && cq != null && encodedColumnQualifiers) {
+            if (cf != null && cq != null) {
                 KVColumnFamilyQualifier info = new KVColumnFamilyQualifier(cf, cq);
-                if (kvColumnsByEncodedQualifiers.put(info, column)) {
+                if (kvColumnsByQualifiers.put(info, column)) {
                     int count = 0;
-                    for (PColumn dupColumn : kvColumnsByEncodedQualifiers.get(info)) {
+                    for (PColumn dupColumn : kvColumnsByQualifiers.get(info)) {
                         if (Objects.equal(familyName, dupColumn.getFamilyName())) {
                             count++;
                             if (count > 1) {
@@ -836,7 +834,7 @@ public class PTableImpl implements PTable {
             return getPColumnForColumnName(columnName);
         } else {
             String family = (String)PVarchar.INSTANCE.toObject(cf);
-            List<PColumn> columns = kvColumnsByEncodedQualifiers.get(new KVColumnFamilyQualifier(family, cq));
+            List<PColumn> columns = kvColumnsByQualifiers.get(new KVColumnFamilyQualifier(family, cq));
             int size = columns.size();
             if (size == 0) {
                 //TODO: samarth should we have a column qualifier not found exception?
@@ -926,7 +924,7 @@ public class PTableImpl implements PTable {
                         Collection<PColumn> columns = family.getColumns();
                         int maxEncodedColumnQualifier = Integer.MIN_VALUE;
                         for (PColumn column : columns) {
-                            int qualifier = qualifierEncodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+                            int qualifier = qualifierEncodingScheme.decode(column.getColumnQualifierBytes());
                             maxEncodedColumnQualifier = Math.max(maxEncodedColumnQualifier, qualifier);
                         }
                         Expression[] colValues = new Expression[maxEncodedColumnQualifier+1];
@@ -940,7 +938,7 @@ public class PTableImpl implements PTable {
                         colValues[0]=LiteralExpression.newConstant(QueryConstants.EMPTY_COLUMN_VALUE_BYTES);
                         for (PColumn column : columns) {
                         	if (columnToValueMap.containsKey(column)) {
-                        	    int qualifier = qualifierEncodingScheme.getDecodedValue(column.getColumnQualifierBytes());
+                        	    int qualifier = qualifierEncodingScheme.decode(column.getColumnQualifierBytes());
                         		colValues[qualifier] = new LiteralExpression(columnToValueMap.get(column));
                         	}
                         }

@@ -952,7 +952,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
                 int maxIndex = Integer.MIN_VALUE;
                 // find the max col qualifier
                 for (Pair<ColumnReference, ColumnReference> colRefPair : colRefPairs) {
-                    int qualifier = encodingScheme.getDecodedValue(colRefPair.getFirst().getQualifier());
+                    int qualifier = encodingScheme.decode(colRefPair.getFirst().getQualifier());
                     maxIndex = Math.max(maxIndex, qualifier);
                 }
                 byte[][] colValues = new byte[maxIndex+1][];
@@ -990,7 +990,7 @@ public class IndexMaintainer implements Writable, Iterable<ColumnReference> {
                     expression.evaluate(new ValueGetterTuple(valueGetter), ptr);
                     byte[] value = ptr.copyBytesIfNecessary();
 					if (value != null) {
-						int indexArrayPos = encodingScheme.getDecodedValue(indexColRef.getQualifier());
+						int indexArrayPos = encodingScheme.decode(indexColRef.getQualifier());
                         colValues[indexArrayPos] = value;
                     }
                 }

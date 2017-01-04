@@ -169,14 +169,14 @@ public interface QueryConstants {
     // get away with storing them in a single byte? We would need to make our encoding scheme
     // cognizant of the fact that all bytes may not be available making them interoperable.
     // In other words allow upper casting but not downcasting.
-    public static final byte[] VALUE_COLUMN_QUALIFIER = FOUR_BYTE_QUALIFIERS.getEncodedBytes(1);
+    public static final byte[] VALUE_COLUMN_QUALIFIER = FOUR_BYTE_QUALIFIERS.encode(1);
     
     public static final byte[] ARRAY_VALUE_COLUMN_FAMILY = RESERVED_COLUMN_FAMILY_BYTES;
-    public static final byte[] ARRAY_VALUE_COLUMN_QUALIFIER = FOUR_BYTE_QUALIFIERS.getEncodedBytes(2);
+    public static final byte[] ARRAY_VALUE_COLUMN_QUALIFIER = FOUR_BYTE_QUALIFIERS.encode(2);
     
     public final static PName SINGLE_COLUMN_NAME = PNameFactory.newNormalizedName("s");
     public final static PName SINGLE_COLUMN_FAMILY_NAME = PNameFactory.newNormalizedName("s");
-    public final static byte[] SINGLE_COLUMN = FOUR_BYTE_QUALIFIERS.getEncodedBytes(3);
+    public final static byte[] SINGLE_COLUMN = FOUR_BYTE_QUALIFIERS.encode(3);
     public final static byte[] SINGLE_COLUMN_FAMILY = RESERVED_COLUMN_FAMILY_BYTES;
 
     /** END Set of reserved column qualifiers **/
@@ -208,7 +208,7 @@ public interface QueryConstants {
     public static final ImmutableBytesPtr EMPTY_COLUMN_BYTES_PTR = new ImmutableBytesPtr(
             EMPTY_COLUMN_BYTES);
     public static final Integer ENCODED_EMPTY_COLUMN_NAME = 0;
-    public static final byte[] ENCODED_EMPTY_COLUMN_BYTES = FOUR_BYTE_QUALIFIERS.getEncodedBytes(ENCODED_EMPTY_COLUMN_NAME);
+    public static final byte[] ENCODED_EMPTY_COLUMN_BYTES = FOUR_BYTE_QUALIFIERS.encode(ENCODED_EMPTY_COLUMN_NAME);
     public static final ImmutableBytesPtr ENCODED_EMPTY_COLUMN_BYTES_PTR = new ImmutableBytesPtr(
             ENCODED_EMPTY_COLUMN_BYTES);
     public final static String EMPTY_COLUMN_VALUE = "x";
