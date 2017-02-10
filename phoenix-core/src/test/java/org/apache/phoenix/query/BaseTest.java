@@ -148,6 +148,7 @@ import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.TransactionService;
 import org.apache.tephra.metrics.TxMetricsCollector;
 import org.apache.tephra.persist.HDFSTransactionStateStorage;
+import org.apache.tephra.persist.InMemoryTransactionStateStorage;
 import org.apache.tephra.snapshot.SnapshotCodecProvider;
 import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.discovery.ZKDiscoveryService;

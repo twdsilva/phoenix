@@ -238,8 +238,9 @@ public class DelegateRegionObserver implements RegionObserver {
             return UserGroupInformation.getLoginUser().doAs(new PrivilegedExceptionAction<InternalScanner>() {
                 @Override
                 public InternalScanner run() throws Exception {
-                    return delegate.preCompactScannerOpen(c, store, scanners, scanType, earliestPutTs, s,
-                            request);
+                	 InternalScanner scanner = delegate.preCompactScannerOpen(c, store, scanners, scanType, earliestPutTs, s,
+                             request);
+                    return scanner;
                 }
             });
         } catch (InterruptedException e) {
