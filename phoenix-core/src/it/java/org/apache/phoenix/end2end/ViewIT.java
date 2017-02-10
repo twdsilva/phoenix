@@ -701,4 +701,5 @@ public class ViewIT extends BaseViewIT {
         String[] actualPKs = pkCols.toArray(new String[0]);
         assertArrayEquals(expectedPKs, actualPKs);
     }
+    
 }

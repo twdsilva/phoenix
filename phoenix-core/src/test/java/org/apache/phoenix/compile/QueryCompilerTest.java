@@ -60,7 +60,6 @@ import org.apache.phoenix.expression.aggregator.ServerAggregators;
 import org.apache.phoenix.expression.function.TimeUnit;
 import org.apache.phoenix.filter.ColumnProjectionFilter;
 import org.apache.phoenix.jdbc.PhoenixConnection;
-import org.apache.phoenix.jdbc.PhoenixDatabaseMetaData;
 import org.apache.phoenix.jdbc.PhoenixPreparedStatement;
 import org.apache.phoenix.jdbc.PhoenixStatement;
 import org.apache.phoenix.query.BaseConnectionlessQueryTest;
@@ -3884,5 +3883,40 @@ public class QueryCompilerTest extends BaseConnectionlessQueryTest {
         QueryPlan queryPlan = statement.optimizeQuery(sql);
         queryPlan.iterator();
         return queryPlan;
+    }
+    
+    @Test
+    public void testQueryTenantView() throws Exception {
+        Properties props = new Properties();
+        String tenantId = "oid1";
+        props.setProperty(PhoenixRuntime.TENANT_ID_ATTRIB, tenantId);
+        try (Connection conn = DriverManager.getConnection(getUrl());
+                Connection viewConn = DriverManager.getConnection(getUrl(), props)) {
+            String ddl = "CREATE TABLE ced ( "
+                    + " OID CHAR(4) NOT NULL, "
+                    + " KP CHAR(3) NOT NULL, "
+                    + " COL1 DATE, "
+                    + " CREATED_BY CHAR(15), "
+                    + " SYSTEM_MODSTAMP DATE"
+                    + " CONSTRAINT PK PRIMARY KEY (OID, KP)"
+                    + ") VERSIONS=1, MULTI_TENANT=true, IMMUTABLE_ROWS=TRUE, REPLICATION_SCOPE=1";
+            Statement stmt = conn.createStatement();
+            stmt.execute(ddl);
+            
+            stmt.execute("CREATE VIEW abc(view_pk VARCHAR(50) NOT NULL, view_col1 DECIMAL CONSTRAINT PK PRIMARY KEY (view_pk DESC)) AS SELECT * FROM ced WHERE kp = 'abc'");
+            
+            String plan1 = "CLIENT PARALLEL 1-WAY POINT LOOKUP ON 2 KEYS OVER CED";
+            ResultSet rs = stmt.executeQuery("EXPLAIN select * from ced where OID IN ('oid1', 'oid2') AND kp = 'abc'");
+            assertEquals(plan1, QueryUtil.getExplainPlan(rs));
+            rs = stmt.executeQuery("EXPLAIN select * from ced where (OID = 'oid1' OR OID  = 'oid2') AND kp = 'abc'");
+            assertEquals(plan1, QueryUtil.getExplainPlan(rs));
+            
+            Statement viewStmt = viewConn.createStatement();
+            String plan2 = "";
+            rs = viewStmt.executeQuery("EXPLAIN select * from abc where view_pk IN ('val1', 'val2')");
+            assertEquals(plan2, QueryUtil.getExplainPlan(rs));
+            rs = viewStmt.executeQuery("EXPLAIN select * from abc where (view_pk = 'val1' OR view_pk  = 'val2')");
+            assertEquals(plan2, QueryUtil.getExplainPlan(rs));
+        }
     }
 }
