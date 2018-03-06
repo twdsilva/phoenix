@@ -454,14 +454,14 @@ public class PhoenixRuntime {
             table = pconn.getTable(new PTableKey(pconn.getTenantId(), name));
         } catch (TableNotFoundException e) {
             // parent indexes on child view metadata rows are not present on the server
-            if (name.contains(QueryConstants.CHILD_VIEW_INDEX_NAME_SEPARATOR)) {
-                String viewName =
-                        SchemaUtil.getTableNameFromFullName(name,
-                            QueryConstants.CHILD_VIEW_INDEX_NAME_SEPARATOR);
-                // resolve the view which should also load any parent indexes
-                getTable(conn, viewName);
-                table = pconn.getTable(new PTableKey(pconn.getTenantId(), name));
-            } else {
+//            if (name.contains(QueryConstants.CHILD_VIEW_INDEX_NAME_SEPARATOR)) {
+//                String viewName =
+//                        SchemaUtil.getTableNameFromFullName(name,
+//                            QueryConstants.CHILD_VIEW_INDEX_NAME_SEPARATOR);
+//                // resolve the view which should also load any parent indexes
+//                getTable(conn, viewName);
+//                table = pconn.getTable(new PTableKey(pconn.getTenantId(), name));
+//            } else {
                 String schemaName = SchemaUtil.getSchemaNameFromFullName(name);
                 String tableName = SchemaUtil.getTableNameFromFullName(name);
                 MetaDataMutationResult result =
@@ -470,7 +470,7 @@ public class PhoenixRuntime {
                     throw e;
                 }
                 table = result.getTable();
-            }
+//            }
         }
         return table;
     }
